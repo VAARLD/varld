@@ -6,13 +6,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0a0a0f"/>
-<title>Programme Prépa Foot</title>
+<title>Prépa Foot</title>
 <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlByw6lwYSBGb290IiwKICAic2hvcnRfbmFtZSI6ICJQcsOpcGEiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBhMGEwZiIsCiAgInRoZW1lX2NvbG9yIjogIiMwYTBhMGYiCn0="/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;color:#e8e8ed;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+body{-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
+textarea{font-family:inherit}
+@keyframes prPulse{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.pr-badge{animation:prPulse 0.6s ease-in-out}
+.fade-in{animation:fadeIn 0.3s ease-out}
+.scroll-target{scroll-margin-top:10px}
 </style>
 </head>
 <body>
@@ -21,450 +27,171 @@ input[type=number]{-moz-appearance:textfield}
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script type="text/babel">
-const{useState,useEffect,useCallback,useRef}=React;
+const{useState,useEffect,useCallback,useRef}=React;const h=React.createElement;
+const LS={get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 
-const S={
-  get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}},
-  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
-  del(k){try{localStorage.removeItem(k)}catch(e){}}
-};
+// ── Theme ──
+const DARK={bg:"#0a0a0f",card:"#0e0e16",card2:"#111118",border:"#1a1a28",text:"#e8e8ed",text2:"#ccc",text3:"#888",text4:"#555",text5:"#444",input:"#08080e",glow:"10"};
+const LIGHT={bg:"#f5f5f0",card:"#ffffff",card2:"#fafafa",border:"#e0e0d8",text:"#1a1a1a",text2:"#333",text3:"#666",text4:"#888",text5:"#aaa",input:"#f0f0ea",glow:"08"};
 
-const PROGRAM={
-  1:{name:"HYPERTROPHIE",weeks:"Semaines 1-6",color:"#e94560",sessions:{
-    lundi:{title:"Bas du corps — Force",time:"18h15",exercises:[
-      {name:"Back squat",sets:4,reps:"6-8",rest:150},
-      {name:"Fentes bulgares (haltères)",sets:3,reps:"8-10/jambe",rest:120},
-      {name:"Romanian deadlift (barre)",sets:4,reps:"8-10",rest:120},
-      {name:"Hip thrust (barre)",sets:3,reps:"10-12",rest:90},
-      {name:"Leg curl machine",sets:3,reps:"10-12",rest:60},
-      {name:"Mollets debout (machine)",sets:4,reps:"12-15",rest:60}
-    ]},
-    mardi:{title:"Haut — Dos + Épaules",time:"6h00",exercises:[
-      {name:"Tractions pronation (lestées)",sets:4,reps:"6-8",rest:120},
-      {name:"Rowing barre",sets:4,reps:"8-10",rest:120},
-      {name:"Dév. militaire haltères debout",sets:4,reps:"8-10",rest:90},
-      {name:"Élévations latérales (haltères)",sets:4,reps:"12-15",rest:60},
-      {name:"Face pulls (câble)",sets:3,reps:"15-20",rest:60},
-      {name:"Shrugs haltères",sets:3,reps:"12-15",rest:60}
-    ]},
-    mercredi:{title:"Bas du corps — Puissance",time:"18h15",exercises:[
-      {name:"Squat jump (barre ~40% max)",sets:4,reps:"5",rest:120},
-      {name:"Presse à cuisses",sets:4,reps:"8-10",rest:120},
-      {name:"Fentes marchées (haltères)",sets:3,reps:"10/jambe",rest:90},
-      {name:"Nordic hamstring curl",sets:4,reps:"6-8",rest:120},
-      {name:"Box jumps",sets:3,reps:"6",rest:90},
-      {name:"Gainage planche + latérale",sets:3,reps:"30s chaque",rest:60}
-    ]},
-    jeudi:{title:"Haut — Pecs + Bras",time:"6h00",exercises:[
-      {name:"Développé couché haltères",sets:4,reps:"8-10",rest:120},
-      {name:"Dips (lestés si possible)",sets:3,reps:"8-10",rest:90},
-      {name:"Rowing haltère unilatéral",sets:3,reps:"10-12",rest:90},
-      {name:"Curl barre EZ",sets:3,reps:"10-12",rest:60},
-      {name:"Extensions triceps câble",sets:3,reps:"10-12",rest:60},
-      {name:"Élévations latérales (câble)",sets:3,reps:"12-15",rest:60}
-    ]},
-    vendredi:{title:"Full body athlétique",time:"18h15 ou Samedi",exercises:[
-      {name:"Deadlift conventionnel",sets:4,reps:"5",rest:180},
-      {name:"Squat goblet + saut",sets:3,reps:"8",rest:90},
-      {name:"Tractions supination",sets:3,reps:"8-10",rest:90},
-      {name:"Push-ups claqués",sets:3,reps:"8-10",rest:60},
-      {name:"Kettlebell swings",sets:3,reps:"12",rest:60},
-      {name:"Sprint tapis/rameur",sets:6,reps:"20s",rest:40}
-    ]},
-    dimanche:{title:"Aérobie — Base",time:"Matin",exercises:[
-      {name:"Footing 35-45 min (130-150 bpm)",sets:1,reps:"1",rest:0}
-    ]}
-  }},
-  2:{name:"FORCE + PUISSANCE",weeks:"Semaines 7-12",color:"#0f3460",sessions:{
-    lundi:{title:"Bas du corps — Force lourde",time:"18h15",exercises:[
-      {name:"Back squat",sets:5,reps:"4-6",rest:180},
-      {name:"Fentes bulgares (barre)",sets:4,reps:"6-8/jambe",rest:120},
-      {name:"Romanian deadlift (barre)",sets:4,reps:"6-8",rest:150},
-      {name:"Hip thrust lourd",sets:4,reps:"6-8",rest:120},
-      {name:"Leg curl lourd",sets:3,reps:"8-10",rest:90},
-      {name:"Mollets assis (lourd)",sets:4,reps:"8-10",rest:60}
-    ]},
-    mardi:{title:"Haut — Dos + Épaules (force)",time:"6h00",exercises:[
-      {name:"Tractions lestées",sets:5,reps:"4-6",rest:150},
-      {name:"Rowing barre lourd",sets:4,reps:"6-8",rest:120},
-      {name:"Dév. militaire barre debout",sets:4,reps:"6-8",rest:120},
-      {name:"Élévations latérales (lourds)",sets:4,reps:"10-12",rest:60},
-      {name:"Face pulls lourds",sets:3,reps:"12-15",rest:60},
-      {name:"Shrugs barre lourds",sets:4,reps:"8-10",rest:90}
-    ]},
-    mercredi:{title:"Bas du corps — Puissance/Explosivité",time:"18h15",exercises:[
-      {name:"Hang clean",sets:5,reps:"3",rest:150},
-      {name:"Squat jump (barre ~50% max)",sets:4,reps:"4",rest:120},
-      {name:"Presse à cuisses explosive",sets:4,reps:"6-8",rest:120},
-      {name:"Nordic hamstring curl",sets:4,reps:"5-6",rest:120},
-      {name:"Box jumps (hauteur croissante)",sets:4,reps:"5",rest:90},
-      {name:"Sprints résistés",sets:5,reps:"15s",rest:60}
-    ]},
-    jeudi:{title:"Haut — Pecs + Bras (force)",time:"6h00",exercises:[
-      {name:"Développé couché barre",sets:4,reps:"5-6",rest:150},
-      {name:"Dips lestés",sets:4,reps:"5-6",rest:120},
-      {name:"Rowing haltère lourd",sets:4,reps:"6-8",rest:90},
-      {name:"Curl haltères marteau",sets:3,reps:"8-10",rest:60},
-      {name:"Barre au front (triceps)",sets:3,reps:"8-10",rest:60},
-      {name:"Élévations latérales câble",sets:3,reps:"12-15",rest:60}
-    ]},
-    vendredi:{title:"Full body explosif",time:"18h15 ou Samedi",exercises:[
-      {name:"Deadlift lourd",sets:5,reps:"3",rest:180},
-      {name:"Squat sauté PDC",sets:4,reps:"6",rest:90},
-      {name:"Push-ups claqués",sets:4,reps:"6-8",rest:60},
-      {name:"Tractions explosives",sets:3,reps:"5",rest:120},
-      {name:"Kettlebell swings lourds",sets:4,reps:"10",rest:60},
-      {name:"Rameur 30s/repos 30s",sets:8,reps:"30s",rest:30}
-    ]},
-    dimanche:{title:"Intermittent",time:"Matin",exercises:[
-      {name:"30/30 sprint/trot — 2 blocs 8 min",sets:1,reps:"1",rest:0}
-    ]}
-  }},
-  3:{name:"AFFÛTAGE",weeks:"Semaines 13-16",color:"#f59e0b",sessions:{
-    lundi:{title:"Bas du corps — Maintien + Vitesse",time:"18h15",exercises:[
-      {name:"Back squat",sets:3,reps:"3-5",rest:180},
-      {name:"Squat jump PDC",sets:4,reps:"5",rest:90},
-      {name:"Romanian deadlift",sets:3,reps:"6",rest:120},
-      {name:"Sprints 20m départ arrêté",sets:6,reps:"1",rest:90},
-      {name:"Navettes 5-10-5",sets:4,reps:"1",rest:60}
-    ]},
-    mardi:{title:"Haut — Maintien",time:"6h00",exercises:[
-      {name:"Tractions lestées",sets:3,reps:"4-6",rest:120},
-      {name:"Développé militaire",sets:3,reps:"6-8",rest:120},
-      {name:"Rowing câble",sets:3,reps:"8-10",rest:90},
-      {name:"Élévations latérales",sets:3,reps:"12-15",rest:60},
-      {name:"Face pulls",sets:2,reps:"15",rest:60}
-    ]},
-    mercredi:{title:"Athlétisme pur",time:"18h15",exercises:[
-      {name:"Hang clean",sets:4,reps:"2",rest:120},
-      {name:"Box jumps max height",sets:4,reps:"3",rest:120},
-      {name:"Sprints 30m",sets:6,reps:"1",rest:120},
-      {name:"Fentes sautées alternées",sets:3,reps:"6/jambe",rest:90},
-      {name:"Gainage dynamique",sets:3,reps:"30s",rest:60}
-    ]},
-    jeudi:{title:"Haut — Maintien",time:"6h00",exercises:[
-      {name:"Développé couché",sets:3,reps:"5",rest:120},
-      {name:"Dips",sets:3,reps:"6-8",rest:90},
-      {name:"Rowing haltère",sets:3,reps:"8-10",rest:90},
-      {name:"Curl + triceps superset",sets:2,reps:"10 chaque",rest:60}
-    ]},
-    vendredi:{title:"Session terrain",time:"18h15 ou Samedi",exercises:[
-      {name:"Échauffement dynamique",sets:1,reps:"10 min",rest:0},
-      {name:"Sprints progressifs",sets:4,reps:"40m",rest:60},
-      {name:"Sprints max 20m",sets:6,reps:"1",rest:90},
-      {name:"Navettes type Léger",sets:1,reps:"10 min",rest:0},
-      {name:"Duels / appuis latéraux",sets:1,reps:"10 min",rest:0},
-      {name:"Étirements",sets:1,reps:"10 min",rest:0}
-    ]},
-    dimanche:{title:"Intermittent spécifique",time:"Matin",exercises:[
-      {name:"Yo-Yo intermittent recovery",sets:1,reps:"25-35 min",rest:0}
-    ]}
-  }}
-};
+// ── Program ──
+const PROGRAM={1:{name:"HYPERTROPHIE",weeks:"Semaines 1-6",color:"#e94560",sessions:{lundi:{title:"Bas du corps — Force",time:"18h15",exercises:[{name:"Back squat",sets:4,reps:"6-8",rest:150},{name:"Fentes bulgares (haltères)",sets:3,reps:"8-10/jambe",rest:120},{name:"Romanian deadlift (barre)",sets:4,reps:"8-10",rest:120},{name:"Hip thrust (barre)",sets:3,reps:"10-12",rest:90},{name:"Leg curl machine",sets:3,reps:"10-12",rest:60},{name:"Mollets debout (machine)",sets:4,reps:"12-15",rest:60}]},mardi:{title:"Haut — Dos + Épaules",time:"6h00",exercises:[{name:"Tractions pronation (lestées)",sets:4,reps:"6-8",rest:120},{name:"Rowing barre",sets:4,reps:"8-10",rest:120},{name:"Dév. militaire haltères debout",sets:4,reps:"8-10",rest:90},{name:"Élévations latérales (haltères)",sets:4,reps:"12-15",rest:60},{name:"Face pulls (câble)",sets:3,reps:"15-20",rest:60},{name:"Shrugs haltères",sets:3,reps:"12-15",rest:60}]},mercredi:{title:"Bas du corps — Puissance",time:"18h15",exercises:[{name:"Squat jump (barre ~40%)",sets:4,reps:"5",rest:120},{name:"Presse à cuisses",sets:4,reps:"8-10",rest:120},{name:"Fentes marchées (haltères)",sets:3,reps:"10/jambe",rest:90},{name:"Nordic hamstring curl",sets:4,reps:"6-8",rest:120},{name:"Box jumps",sets:3,reps:"6",rest:90},{name:"Gainage planche+latérale",sets:3,reps:"30s",rest:60}]},jeudi:{title:"Haut — Pecs + Bras",time:"6h00",exercises:[{name:"Développé couché haltères",sets:4,reps:"8-10",rest:120},{name:"Dips (lestés)",sets:3,reps:"8-10",rest:90},{name:"Rowing haltère unilatéral",sets:3,reps:"10-12",rest:90},{name:"Curl barre EZ",sets:3,reps:"10-12",rest:60},{name:"Extensions triceps câble",sets:3,reps:"10-12",rest:60},{name:"Élévations latérales (câble)",sets:3,reps:"12-15",rest:60}]},vendredi:{title:"Full body athlétique",time:"18h15/Sam",exercises:[{name:"Deadlift conventionnel",sets:4,reps:"5",rest:180},{name:"Squat goblet + saut",sets:3,reps:"8",rest:90},{name:"Tractions supination",sets:3,reps:"8-10",rest:90},{name:"Push-ups claqués",sets:3,reps:"8-10",rest:60},{name:"Kettlebell swings",sets:3,reps:"12",rest:60},{name:"Sprint tapis/rameur",sets:6,reps:"20s",rest:40}]},dimanche:{title:"Aérobie — Base",time:"Matin",exercises:[{name:"Footing 35-45min (130-150bpm)",sets:1,reps:"1",rest:0}]}}},
+2:{name:"FORCE+PUISSANCE",weeks:"Semaines 7-12",color:"#0f3460",sessions:{lundi:{title:"Bas du corps — Force lourde",time:"18h15",exercises:[{name:"Back squat",sets:5,reps:"4-6",rest:180},{name:"Fentes bulgares (barre)",sets:4,reps:"6-8/jambe",rest:120},{name:"Romanian deadlift (barre)",sets:4,reps:"6-8",rest:150},{name:"Hip thrust lourd",sets:4,reps:"6-8",rest:120},{name:"Leg curl lourd",sets:3,reps:"8-10",rest:90},{name:"Mollets assis (lourd)",sets:4,reps:"8-10",rest:60}]},mardi:{title:"Haut — Dos+Épaules (force)",time:"6h00",exercises:[{name:"Tractions lestées",sets:5,reps:"4-6",rest:150},{name:"Rowing barre lourd",sets:4,reps:"6-8",rest:120},{name:"Dév. militaire barre debout",sets:4,reps:"6-8",rest:120},{name:"Élévations latérales (lourds)",sets:4,reps:"10-12",rest:60},{name:"Face pulls lourds",sets:3,reps:"12-15",rest:60},{name:"Shrugs barre lourds",sets:4,reps:"8-10",rest:90}]},mercredi:{title:"Bas du corps — Explosivité",time:"18h15",exercises:[{name:"Hang clean",sets:5,reps:"3",rest:150},{name:"Squat jump (barre ~50%)",sets:4,reps:"4",rest:120},{name:"Presse à cuisses explosive",sets:4,reps:"6-8",rest:120},{name:"Nordic hamstring curl",sets:4,reps:"5-6",rest:120},{name:"Box jumps (croissant)",sets:4,reps:"5",rest:90},{name:"Sprints résistés",sets:5,reps:"15s",rest:60}]},jeudi:{title:"Haut — Pecs+Bras (force)",time:"6h00",exercises:[{name:"Développé couché barre",sets:4,reps:"5-6",rest:150},{name:"Dips lestés",sets:4,reps:"5-6",rest:120},{name:"Rowing haltère lourd",sets:4,reps:"6-8",rest:90},{name:"Curl haltères marteau",sets:3,reps:"8-10",rest:60},{name:"Barre au front (triceps)",sets:3,reps:"8-10",rest:60},{name:"Élévations latérales câble",sets:3,reps:"12-15",rest:60}]},vendredi:{title:"Full body explosif",time:"18h15/Sam",exercises:[{name:"Deadlift lourd",sets:5,reps:"3",rest:180},{name:"Squat sauté PDC",sets:4,reps:"6",rest:90},{name:"Push-ups claqués",sets:4,reps:"6-8",rest:60},{name:"Tractions explosives",sets:3,reps:"5",rest:120},{name:"Kettlebell swings lourds",sets:4,reps:"10",rest:60},{name:"Rameur 30s/30s",sets:8,reps:"30s",rest:30}]},dimanche:{title:"Intermittent",time:"Matin",exercises:[{name:"30/30 sprint/trot 2×8min",sets:1,reps:"1",rest:0}]}}},
+3:{name:"AFFÛTAGE",weeks:"Semaines 13-16",color:"#f59e0b",sessions:{lundi:{title:"Bas du corps — Maintien+Vitesse",time:"18h15",exercises:[{name:"Back squat",sets:3,reps:"3-5",rest:180},{name:"Squat jump PDC",sets:4,reps:"5",rest:90},{name:"Romanian deadlift",sets:3,reps:"6",rest:120},{name:"Sprints 20m",sets:6,reps:"1",rest:90},{name:"Navettes 5-10-5",sets:4,reps:"1",rest:60}]},mardi:{title:"Haut — Maintien",time:"6h00",exercises:[{name:"Tractions lestées",sets:3,reps:"4-6",rest:120},{name:"Développé militaire",sets:3,reps:"6-8",rest:120},{name:"Rowing câble",sets:3,reps:"8-10",rest:90},{name:"Élévations latérales",sets:3,reps:"12-15",rest:60},{name:"Face pulls",sets:2,reps:"15",rest:60}]},mercredi:{title:"Athlétisme pur",time:"18h15",exercises:[{name:"Hang clean",sets:4,reps:"2",rest:120},{name:"Box jumps max",sets:4,reps:"3",rest:120},{name:"Sprints 30m",sets:6,reps:"1",rest:120},{name:"Fentes sautées",sets:3,reps:"6/jambe",rest:90},{name:"Gainage dynamique",sets:3,reps:"30s",rest:60}]},jeudi:{title:"Haut — Maintien",time:"6h00",exercises:[{name:"Développé couché",sets:3,reps:"5",rest:120},{name:"Dips",sets:3,reps:"6-8",rest:90},{name:"Rowing haltère",sets:3,reps:"8-10",rest:90},{name:"Curl+triceps superset",sets:2,reps:"10",rest:60}]},vendredi:{title:"Session terrain",time:"18h15/Sam",exercises:[{name:"Échauffement dynamique",sets:1,reps:"10min",rest:0},{name:"Sprints progressifs",sets:4,reps:"40m",rest:60},{name:"Sprints max 20m",sets:6,reps:"1",rest:90},{name:"Navettes Léger",sets:1,reps:"10min",rest:0},{name:"Duels/appuis latéraux",sets:1,reps:"10min",rest:0},{name:"Étirements",sets:1,reps:"10min",rest:0}]},dimanche:{title:"Intermittent spécifique",time:"Matin",exercises:[{name:"Yo-Yo intermittent",sets:1,reps:"25-35min",rest:0}]}}}};
 
 const DAYS=["lundi","mardi","mercredi","jeudi","vendredi","dimanche"];
 const DL={lundi:"LUN",mardi:"MAR",mercredi:"MER",jeudi:"JEU",vendredi:"VEN",dimanche:"DIM"};
 const DF={lundi:"Lundi",mardi:"Mardi",mercredi:"Mercredi",jeudi:"Jeudi",vendredi:"Vendredi",dimanche:"Dimanche"};
-const FOOT={mardi:true,jeudi:true};
-
-function gw(){const d=new Date()-new Date("2026-04-13");return Math.max(1,Math.min(16,Math.ceil(d/(7*864e5))))}
+const FOOT={mardi:true,jeudi:true};const DELOAD=[4,8,16];
+const PR_EX=["Back squat","Romanian deadlift","Développé couché","Deadlift","Tractions","Dév. militaire","Hip thrust","Dips","Hang clean"];
+function gw(){return Math.max(1,Math.min(16,Math.ceil((new Date()-new Date("2026-04-13"))/(7*864e5))))}
 function gp(w){return w<=6?1:w<=12?2:3}
-function ft(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`}
+function fmt(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`}
 function sk(w,d,e,s){return`${w}-${d}-${e}-${s}`}
+function e1rm(kg,reps){const r=parseInt(reps)||0;return r>0&&kg>0?Math.round(kg*(1+r/30)):0}
 
-function RestTimer({duration,color,onDone}){
-  const[rem,setRem]=useState(duration);
-  const[on,setOn]=useState(true);
-  const ref=useRef(null);
-  const ac=useRef(null);
-  const beep=useCallback(()=>{
-    try{if(!ac.current)ac.current=new(window.AudioContext||window.webkitAudioContext)();const c=ac.current,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=0.3;o.start();o.stop(c.currentTime+0.2);setTimeout(()=>{const o2=c.createOscillator(),g2=c.createGain();o2.connect(g2);g2.connect(c.destination);o2.frequency.value=1100;g2.gain.value=0.3;o2.start();o2.stop(c.currentTime+0.3)},250)}catch(e){}
-  },[]);
-  useEffect(()=>{if(on&&rem>0)ref.current=setInterval(()=>setRem(r=>r-1),1000);return()=>clearInterval(ref.current)},[on,rem]);
-  useEffect(()=>{if(rem<=0&&on){beep();setOn(false)}},[rem,on,beep]);
-  const ci=2*Math.PI*58,pc=duration>0?(duration-rem)/duration:1,dn=rem<=0;
-  return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)"}},
-    React.createElement("div",{style:{fontSize:11,letterSpacing:4,color:"#555",marginBottom:24}},"REPOS"),
-    React.createElement("div",{style:{position:"relative",width:170,height:170,marginBottom:28}},
-      React.createElement("svg",{width:170,height:170,style:{transform:"rotate(-90deg)"}},
-        React.createElement("circle",{cx:85,cy:85,r:58,fill:"none",stroke:"#151520",strokeWidth:10}),
-        React.createElement("circle",{cx:85,cy:85,r:58,fill:"none",stroke:dn?"#22c55e":color,strokeWidth:10,strokeLinecap:"round",strokeDasharray:ci,strokeDashoffset:ci*(1-pc),style:{transition:"stroke-dashoffset 1s linear"}})
-      ),
-      React.createElement("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}},
-        React.createElement("div",{style:{fontSize:dn?32:48,fontWeight:800,fontVariantNumeric:"tabular-nums",color:dn?"#22c55e":"#fff"}},dn?"GO !":ft(rem))
-      )
-    ),
-    React.createElement("div",{style:{display:"flex",gap:10}},
-      !dn&&React.createElement("button",{onClick:()=>setOn(r=>!r),style:{padding:"12px 24px",borderRadius:12,border:"none",cursor:"pointer",background:"#1a1a2e",color:"#fff",fontSize:13,fontWeight:700}},on?"⏸ Pause":"▶ Go"),
-      !dn&&React.createElement("button",{onClick:()=>setRem(r=>r+15),style:{padding:"12px 18px",borderRadius:12,border:"none",cursor:"pointer",background:"#1a1a2e",color:"#666",fontSize:13,fontWeight:600}},"+15s"),
-      React.createElement("button",{onClick:onDone,style:{padding:"12px 28px",borderRadius:12,border:"none",cursor:"pointer",background:dn?"#22c55e":color,color:"#fff",fontSize:14,fontWeight:700}},dn?"Série suivante →":"Passer →")
-    )
-  );
-}
+function MiniChart({data,color,width=280,height=120,id="c"}){if(!data.length)return null;const mx=Math.max(...data.map(d=>d.v)),mn=Math.min(...data.map(d=>d.v)),rng=mx-mn||1,pd=15,gw2=width-pd*2,gh=height-pd*3;const pts=data.map((d,i)=>({x:pd+i*(gw2/Math.max(data.length-1,1)),y:pd+gh-(((d.v-mn)/rng)*gh),...d}));const line=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");const area=line+` L${pts[pts.length-1].x},${height-pd} L${pts[0].x},${height-pd} Z`;return h("svg",{width,height,style:{display:"block",margin:"0 auto"}},h("defs",null,h("linearGradient",{id:"g"+id,x1:0,y1:0,x2:0,y2:1},h("stop",{offset:"0%",stopColor:color,stopOpacity:0.3}),h("stop",{offset:"100%",stopColor:color,stopOpacity:0}))),h("path",{d:area,fill:`url(#g${id})`}),h("path",{d:line,fill:"none",stroke:color,strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"}),pts.map((p,i)=>h("g",{key:i},h("circle",{cx:p.x,cy:p.y,r:3,fill:color}),h("text",{x:p.x,y:height-2,textAnchor:"middle",fill:"currentColor",fontSize:8,opacity:0.4},p.label||`S${p.w}`),h("text",{x:p.x,y:p.y-8,textAnchor:"middle",fill:"currentColor",fontSize:8,opacity:0.6},p.v))))}
 
+function RestTimer({duration,color,onDone,T}){const[rem,setRem]=useState(duration);const[on,setOn]=useState(true);const ref=useRef(null);const ac=useRef(null);const beep=useCallback(()=>{try{if(!ac.current)ac.current=new(window.AudioContext||window.webkitAudioContext)();const c=ac.current,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=0.3;o.start();o.stop(c.currentTime+0.2);setTimeout(()=>{const o2=c.createOscillator(),g2=c.createGain();o2.connect(g2);g2.connect(c.destination);o2.frequency.value=1100;g2.gain.value=0.3;o2.start();o2.stop(c.currentTime+0.3)},250)}catch(e){}},[]);useEffect(()=>{if(on&&rem>0)ref.current=setInterval(()=>setRem(r=>r-1),1000);return()=>clearInterval(ref.current)},[on,rem]);useEffect(()=>{if(rem<=0&&on){beep();setOn(false)}},[rem,on,beep]);const ci=2*Math.PI*58,pct=duration>0?(duration-rem)/duration:1,dn=rem<=0;return h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",color:T.text}},h("div",{style:{fontSize:11,letterSpacing:4,color:T.text4,marginBottom:24}},"REPOS"),h("div",{style:{position:"relative",width:170,height:170,marginBottom:28}},h("svg",{width:170,height:170,style:{transform:"rotate(-90deg)"}},h("circle",{cx:85,cy:85,r:58,fill:"none",stroke:T.border,strokeWidth:10}),h("circle",{cx:85,cy:85,r:58,fill:"none",stroke:dn?"#22c55e":color,strokeWidth:10,strokeLinecap:"round",strokeDasharray:ci,strokeDashoffset:ci*(1-pct),style:{transition:"stroke-dashoffset 1s linear"}})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}},h("div",{style:{fontSize:dn?32:48,fontWeight:800,fontVariantNumeric:"tabular-nums",color:dn?"#22c55e":T.text}},dn?"GO !":fmt(rem)))),h("div",{style:{display:"flex",gap:10}},!dn&&h("button",{onClick:()=>setOn(r=>!r),style:{padding:"12px 24px",borderRadius:12,border:"none",cursor:"pointer",background:T.card2,color:T.text,fontSize:13,fontWeight:700}},on?"⏸":"▶"),!dn&&h("button",{onClick:()=>setRem(r=>r+15),style:{padding:"12px 18px",borderRadius:12,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13}},"+15s"),h("button",{onClick:onDone,style:{padding:"12px 28px",borderRadius:12,border:"none",cursor:"pointer",background:dn?"#22c55e":color,color:"#fff",fontSize:14,fontWeight:700}},dn?"Suivant →":"Passer →")))}
+
+function SessTimer({color,T}){const[el,setEl]=useState(0);const[on,setOn]=useState(false);const ref=useRef(null);useEffect(()=>{if(on)ref.current=setInterval(()=>setEl(e=>e+1),1000);return()=>clearInterval(ref.current)},[on]);return h("div",{style:{display:"flex",alignItems:"center",gap:8,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 12px",marginBottom:10}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1,flex:1}},"⏱ DURÉE"),h("div",{style:{fontSize:18,fontWeight:800,fontVariantNumeric:"tabular-nums",color:on?color:T.text4}},fmt(el)),h("button",{onClick:()=>setOn(r=>!r),style:{padding:"4px 10px",borderRadius:6,border:"none",cursor:"pointer",background:T.card2,color:on?color:T.text3,fontSize:10,fontWeight:700}},on?"⏸":"▶"),el>0&&h("button",{onClick:()=>{setEl(0);setOn(false)},style:{padding:"4px 8px",borderRadius:6,border:"none",cursor:"pointer",background:T.card2,color:T.text4,fontSize:10}},"↺"))}
+
+function PRBanner({exercise,weight,onClose}){useEffect(()=>{const t=setTimeout(onClose,3500);return()=>clearTimeout(t)},[onClose]);return h("div",{className:"pr-badge",style:{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:"linear-gradient(135deg,#f59e0b,#ef4444)",borderRadius:14,padding:"12px 20px",boxShadow:"0 8px 32px rgba(245,158,11,0.4)",textAlign:"center",minWidth:200,color:"#fff"}},h("div",{style:{fontSize:11,letterSpacing:2,opacity:0.8}},"🏆 NOUVEAU RECORD"),h("div",{style:{fontSize:16,fontWeight:800,marginTop:2}},exercise),h("div",{style:{fontSize:20,fontWeight:800}},`${weight} kg`))}
+
+function ExHist({exName,logs,color,onClose,T}){const data=[];for(let w=1;w<=16;w++)for(const d of DAYS){const p=gp(w),ses=PROGRAM[p].sessions[d];if(!ses)continue;const idx=ses.exercises.findIndex(e=>e.name.toLowerCase().includes(exName.toLowerCase()));if(idx>=0){let bk=0,br=0;for(let s=0;s<ses.exercises[idx].sets;s++){const l=logs[sk(w,d,idx,s)];if(l&&l.kg&&parseFloat(l.kg)>bk){bk=parseFloat(l.kg);br=parseInt(l.reps)||0}}if(bk>0)data.push({w,v:bk,reps:br});break}}const mx=data.length?Math.max(...data.map(d=>d.v)):0;const best1rm=data.length?Math.max(...data.map(d=>e1rm(d.v,d.reps))):0;
+return h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",padding:20,color:T.text}},h("div",{className:"fade-in",style:{background:T.card2,border:`1px solid ${T.border}`,borderRadius:16,padding:20,width:"100%",maxWidth:360}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},h("div",{style:{fontSize:14,fontWeight:800,color}},exName),h("button",{onClick:onClose,style:{background:"none",border:"none",color:T.text4,fontSize:18,cursor:"pointer"}},"✕")),data.length>0?h(React.Fragment,null,h("div",{style:{display:"flex",justifyContent:"space-around",marginBottom:16}},h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"RECORD"),h("div",{style:{fontSize:20,fontWeight:800,color:"#f59e0b"}},`${mx}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"1RM EST."),h("div",{style:{fontSize:20,fontWeight:800,color:"#22c55e"}},`${best1rm}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"DERNIER"),h("div",{style:{fontSize:20,fontWeight:800,color}},`${data[data.length-1].v}kg`))),h(MiniChart,{data,color,width:300,height:140,id:exName.slice(0,3)}),h("div",{style:{marginTop:16,maxHeight:140,overflowY:"auto"}},data.map((d,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}},h("span",{style:{color:T.text3}},`Sem ${d.w}`),h("span",null,h("span",{style:{color:T.text2,fontWeight:700}},`${d.v}kg × ${d.reps}`),h("span",{style:{color:T.text4,marginLeft:6,fontSize:9}},`1RM≈${e1rm(d.v,d.reps)}kg`)))))):h("div",{style:{textAlign:"center",color:T.text4,padding:20,fontSize:12}},"Aucune donnée")))}
+
+// ════════════════════
+// MAIN APP
+// ════════════════════
 function App(){
-  const[phase,setPhase]=useState(()=>gp(gw()));
-  const[week,setWeek]=useState(()=>gw());
-  const[selDay,setSelDay]=useState(null);
-  const[openEx,setOpenEx]=useState(null);
-  const[logs,setLogs]=useState(()=>S.get("ft-logs")||{});
-  const[wDone,setWDone]=useState(()=>S.get("ft-wdone")||{});
-  const[meals,setMeals]=useState(()=>S.get("ft-meals")||{});
-  const[timer,setTimer]=useState(null);
-  const[view,setView]=useState("week");
+const[phase,setPhase]=useState(()=>gp(gw()));const[week,setWeek]=useState(()=>gw());const[selDay,setSelDay]=useState(null);const[openEx,setOpenEx]=useState(null);
+const[logs,setLogs]=useState(()=>LS.get("ft-logs")||{});const[wDone,setWDone]=useState(()=>LS.get("ft-wdone")||{});const[meals,setMeals]=useState(()=>LS.get("ft-meals")||{});const[notes,setNotes]=useState(()=>LS.get("ft-notes")||{});const[bodyW,setBodyW]=useState(()=>LS.get("ft-bw")||{});const[sleepD,setSleepD]=useState(()=>LS.get("ft-sleep")||{});const[sprints,setSprints]=useState(()=>LS.get("ft-sprints")||{});
+const[timer,setTimer]=useState(null);const[view,setView]=useState("week");const[prB,setPrB]=useState(null);const[histEx,setHistEx]=useState(null);
+const[light,setLight]=useState(()=>LS.get("ft-theme")==="light");
+const T=light?LIGHT:DARK;
+const exRefs=useRef({});
 
-  const sv=useCallback((l,w,m)=>{S.set("ft-logs",l);S.set("ft-wdone",w);S.set("ft-meals",m)},[]);
+useEffect(()=>{LS.set("ft-logs",logs)},[logs]);useEffect(()=>{LS.set("ft-wdone",wDone)},[wDone]);useEffect(()=>{LS.set("ft-meals",meals)},[meals]);useEffect(()=>{LS.set("ft-notes",notes)},[notes]);useEffect(()=>{LS.set("ft-bw",bodyW)},[bodyW]);useEffect(()=>{LS.set("ft-sleep",sleepD)},[sleepD]);useEffect(()=>{LS.set("ft-sprints",sprints)},[sprints]);useEffect(()=>{LS.set("ft-theme",light?"light":"dark")},[light]);
 
-  const getLastLog=useCallback((day,ei,si)=>{
-    for(let w=week-1;w>=1;w--){const v=logs[sk(w,day,ei,si)];if(v&&v.kg)return v}return null;
-  },[week,logs]);
+const getLL=useCallback((day,ei,si)=>{for(let w=week-1;w>=1;w--){const v=logs[sk(w,day,ei,si)];if(v&&v.kg)return v}return null},[week,logs]);
+const getPR=useCallback((exN)=>{let best=0;for(let w=1;w<=16;w++)for(const d of DAYS){const p=gp(w),ses=PROGRAM[p].sessions[d];if(!ses)continue;const idx=ses.exercises.findIndex(e=>e.name.toLowerCase().includes(exN.toLowerCase()));if(idx>=0){for(let s=0;s<ses.exercises[idx].sets;s++){const l=logs[sk(w,d,idx,s)];if(l&&l.kg&&parseFloat(l.kg)>best)best=parseFloat(l.kg)}break}}return best},[logs]);
 
-  const updateField=(day,ei,si,field,val)=>{
-    const k=sk(week,day,ei,si),n={...logs,[k]:{...(logs[k]||{}),[field]:val}};setLogs(n);sv(n,wDone,meals);
-  };
-  const validateSet=(day,ei,si,rest)=>{
-    const k=sk(week,day,ei,si),n={...logs,[k]:{...(logs[k]||{}),done:true}};setLogs(n);sv(n,wDone,meals);if(rest>0)setTimer(rest);
-  };
-  const undoSet=(day,ei,si)=>{
-    const k=sk(week,day,ei,si),entry={...(logs[k]||{})};delete entry.done;const n={...logs,[k]:entry};setLogs(n);sv(n,wDone,meals);
-  };
-  const toggleDay=(day)=>{const k=`${week}-${day}`,n={...wDone,[k]:!wDone[k]};setWDone(n);sv(logs,n,meals)};
-  const toggleMeal=(id)=>{const today=new Date().toISOString().slice(0,10),k=`${today}-${id}`,n={...meals,[k]:!meals[k]};setMeals(n);sv(logs,wDone,n)};
-  const isMealDone=(id)=>{const today=new Date().toISOString().slice(0,10);return meals[`${today}-${id}`]};
+const uField=(day,ei,si,f,v)=>{setLogs(p=>({...p,[sk(week,day,ei,si)]:{...(p[sk(week,day,ei,si)]||{}),[f]:v}}))};
+const valSet=(day,ei,si,rest,exN)=>{const k=sk(week,day,ei,si);const cur=parseFloat((logs[k]||{}).kg)||0;const prev=getPR(exN);setLogs(p=>({...p,[k]:{...(p[k]||{}),done:true}}));if(cur>prev&&cur>0)setTimeout(()=>setPrB({exercise:exN,weight:cur}),300);if(rest>0)setTimer(rest);
+// Auto-scroll to next incomplete exercise
+const ses=PROGRAM[phase].sessions[day];if(ses){let nextEx=null;for(let e=ei;e<ses.exercises.length;e++){const startS=e===ei?si+1:0;for(let s=startS;s<ses.exercises[e].sets;s++){const nk=sk(week,day,e,s);if(!logs[nk]||!logs[nk].done){nextEx=e;break}}if(nextEx!==null)break}if(nextEx!==null&&nextEx!==ei){setTimeout(()=>{setOpenEx(nextEx);setTimeout(()=>{const el=exRefs.current[nextEx];if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},100)},rest>0?500:100)}}};
+const undoSet=(day,ei,si)=>{setLogs(p=>{const e={...(p[sk(week,day,ei,si)]||{})};delete e.done;return{...p,[sk(week,day,ei,si)]:e}})};
+const togDay=(day)=>{setWDone(p=>({...p,[`${week}-${day}`]:!p[`${week}-${day}`]}))};
+const togMeal=(id)=>{const td=new Date().toISOString().slice(0,10);setMeals(p=>({...p,[`${td}-${id}`]:!p[`${td}-${id}`]}))};
+const isMD=(id)=>{return meals[`${new Date().toISOString().slice(0,10)}-${id}`]};
 
-  const cp=PROGRAM[phase],pc=cp.color;
-  const dComp=DAYS.filter(d=>wDone[`${week}-${d}`]).length;
-  const dGoal=Math.max(0,Math.ceil((new Date("2026-08-04")-new Date())/864e5));
+// Session volume calc
+const getVolume=(day)=>{const ses=PROGRAM[phase].sessions[day];if(!ses)return 0;let vol=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){const l=logs[sk(week,day,ei,s)];if(l&&l.done&&l.kg&&l.reps){vol+=parseFloat(l.kg)*(parseInt(l.reps)||0)}}});return Math.round(vol)};
 
-  const h=(tag,props,...ch)=>React.createElement(tag,props,...ch);
-  const d=(s,ch)=>h("div",{style:s},ch);
+const exportD=()=>{const d=JSON.stringify({logs,wDone,meals,notes,bodyW,sleepD,sprints},null,2);const b=new Blob([d],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`prepa-${new Date().toISOString().slice(0,10)}.json`;a.click()};
+const importD=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);if(d.logs)setLogs(d.logs);if(d.wDone)setWDone(d.wDone);if(d.meals)setMeals(d.meals);if(d.notes)setNotes(d.notes);if(d.bodyW)setBodyW(d.bodyW);if(d.sleepD)setSleepD(d.sleepD);if(d.sprints)setSprints(d.sprints);alert("OK !")}catch(er){alert("Erreur")}};r.readAsText(f)};
 
-  // Helper for styled elements
-  const el=(tag,s,p,ch)=>h(tag,{style:s,...p},ch);
+const cp=PROGRAM[phase],pc=cp.color,dC=DAYS.filter(d=>wDone[`${week}-${d}`]).length,dG=Math.max(0,Math.ceil((new Date("2026-08-04")-new Date())/864e5)),isDL=DELOAD.includes(week);
+const today=new Date().toISOString().slice(0,10);
+const dayOrder={lundi:1,mardi:2,mercredi:3,jeudi:4,vendredi:5,dimanche:7};
+const bwArr=Object.entries(bodyW).filter(e=>e[1]).map(([k,v])=>{const[w,d]=k.split("-");return{w:parseInt(w),d,v:parseFloat(v),sort:parseInt(w)*10+((dayOrder[d])||0)}}).sort((a,b)=>a.sort-b.sort).slice(-14).map((e,i)=>({w:e.w,v:e.v,label:`S${e.w}`}));
+const slArr=Object.entries(sleepD).filter(e=>e[1]).map(([k,v])=>{const[w,d]=k.split("-");return{w:parseInt(w),d,v:parseFloat(v),sort:parseInt(w)*10+((dayOrder[d])||0)}}).sort((a,b)=>a.sort-b.sort).slice(-14).map((e,i)=>({w:e.w,v:e.v,label:`S${e.w}`}));
+const spArr=Object.entries(sprints).sort((a,b)=>a[0].localeCompare(b[0])).map((e,i)=>({w:i+1,v:parseFloat(e[1]),label:`S${e[0].split("-w")[1]||i+1}`}));
 
-  return h("div",{style:{minHeight:"100vh",background:"#0a0a0f",color:"#e8e8ed",fontFamily:"'SF Pro Display',-apple-system,sans-serif",maxWidth:480,margin:"0 auto",position:"relative"}},
-    timer!==null&&h(RestTimer,{duration:timer,color:pc,onDone:()=>setTimer(null)}),
-    h("div",{style:{position:"fixed",top:-80,left:"50%",transform:"translateX(-50%)",width:350,height:350,borderRadius:"50%",background:`radial-gradient(circle,${pc}10 0%,transparent 70%)`,pointerEvents:"none",zIndex:0}}),
-    h("div",{style:{position:"relative",zIndex:1,padding:"10px 14px 100px"}},
+return h("div",{style:{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'SF Pro Display',-apple-system,sans-serif",maxWidth:480,margin:"0 auto",transition:"background 0.3s, color 0.3s"}},
+timer!==null&&h(RestTimer,{duration:timer,color:pc,onDone:()=>setTimer(null),T}),
+prB&&h(PRBanner,{...prB,onClose:()=>setPrB(null)}),
+histEx&&h(ExHist,{exName:histEx,logs,color:pc,onClose:()=>setHistEx(null),T}),
+h("div",{style:{position:"fixed",top:-80,left:"50%",transform:"translateX(-50%)",width:350,height:350,borderRadius:"50%",background:`radial-gradient(circle,${pc}${T.glow} 0%,transparent 70%)`,pointerEvents:"none",zIndex:0}}),
 
-      // Header
-      h("div",{style:{textAlign:"center",marginBottom:14,paddingTop:6}},
-        h("div",{style:{fontSize:9,letterSpacing:5,color:"#444"}},"PRÉPA PHYSIQUE FOOTBALL"),
-        h("div",{style:{fontSize:24,fontWeight:800,color:pc,marginTop:2}},cp.name),
-        h("div",{style:{fontSize:11,color:"#555"}},cp.weeks)
-      ),
+h("div",{style:{position:"relative",zIndex:1,padding:"10px 14px 100px"}},
+// Header
+h("div",{style:{textAlign:"center",marginBottom:14,paddingTop:6}},
+  h("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",gap:8}},
+    h("div",{style:{fontSize:9,letterSpacing:5,color:T.text4}},"PRÉPA PHYSIQUE"),
+    h("button",{onClick:()=>setLight(l=>!l),style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:12,color:T.text3}},light?"🌙":"☀️")
+  ),
+  h("div",{style:{fontSize:24,fontWeight:800,color:pc,marginTop:2}},cp.name),
+  h("div",{style:{fontSize:11,color:T.text4}},cp.weeks)
+),
+// Deload
+isDL&&h("div",{style:{background:light?"#fef3c7":"#1a1510",border:`1px solid ${light?"#f59e0b33":"#3d2e10"}`,borderRadius:10,padding:"8px 12px",marginBottom:10,display:"flex",alignItems:"center",gap:8}},h("span",{style:{fontSize:16}},"⚠️"),h("div",null,h("div",{style:{fontSize:11,fontWeight:700,color:"#f59e0b"}},week===16?"DELOAD FINAL":"SEMAINE DE DELOAD"),h("div",{style:{fontSize:9,color:light?"#92400e":"#997a1a"}},"Volume -40/50%. Garder charges, réduire séries."))),
+// Countdown
+h("div",{style:{background:T.card,borderRadius:12,padding:"10px 14px",marginBottom:10,border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",null,h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1}},"OBJECTIF"),h("div",{style:{fontSize:20,fontWeight:800,color:pc}},`J-${dG}`)),h("div",{style:{display:"flex",alignItems:"center",gap:6}},h("button",{onClick:()=>setWeek(w=>{const n=Math.max(1,w-1);setPhase(gp(n));return n}),style:{background:"none",border:"none",color:T.text4,fontSize:16,cursor:"pointer"}},"◂"),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1}},"SEM."),h("div",{style:{fontSize:20,fontWeight:800}},week,h("span",{style:{fontSize:11,color:T.text5}},"/16"))),h("button",{onClick:()=>setWeek(w=>{const n=Math.min(16,w+1);setPhase(gp(n));return n}),style:{background:"none",border:"none",color:T.text4,fontSize:16,cursor:"pointer"}},"▸"))),
+// Phases
+h("div",{style:{display:"flex",gap:4,marginBottom:10}},[1,2,3].map(p=>h("button",{key:p,onClick:()=>{setPhase(p);setWeek(p===1?1:p===2?7:13);setView("week");setSelDay(null)},style:{flex:1,padding:"7px 0",borderRadius:8,border:"none",cursor:"pointer",background:phase===p?PROGRAM[p].color:T.card2,color:phase===p?"#fff":T.text4,fontSize:9,fontWeight:700,letterSpacing:1}},`P${p}`))),
+// Tabs
+h("div",{style:{display:"flex",gap:2,marginBottom:14}},[{k:"week",l:"📋"},{k:"stats",l:"📊"},{k:"prs",l:"🏆"},{k:"nutrition",l:"🍽"},{k:"settings",l:"⚙️"}].map(t=>h("button",{key:t.k,onClick:()=>{setView(t.k);setSelDay(null);setOpenEx(null)},style:{flex:1,padding:"8px 0",borderRadius:8,border:"none",cursor:"pointer",background:view===t.k?T.card2:"transparent",color:view===t.k?T.text:T.text5,fontSize:14}},t.l))),
 
-      // Countdown
-      h("div",{style:{background:"#0e0e16",borderRadius:12,padding:"10px 14px",marginBottom:10,border:"1px solid #1a1a28",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-        h("div",null,
-          h("div",{style:{fontSize:9,color:"#555",letterSpacing:1}},"OBJECTIF"),
-          h("div",{style:{fontSize:20,fontWeight:800,color:pc}},`J-${dGoal}`)
-        ),
-        h("div",{style:{display:"flex",alignItems:"center",gap:6}},
-          h("button",{onClick:()=>setWeek(w=>{const n=Math.max(1,w-1);setPhase(gp(n));return n}),style:{background:"none",border:"none",color:"#555",fontSize:16,cursor:"pointer"}},"◂"),
-          h("div",{style:{textAlign:"center"}},
-            h("div",{style:{fontSize:9,color:"#555",letterSpacing:1}},"SEM."),
-            h("div",{style:{fontSize:20,fontWeight:800}},week,h("span",{style:{fontSize:11,color:"#333"}},"/16"))
-          ),
-          h("button",{onClick:()=>setWeek(w=>{const n=Math.min(16,w+1);setPhase(gp(n));return n}),style:{background:"none",border:"none",color:"#555",fontSize:16,cursor:"pointer"}},"▸")
-        )
-      ),
+// ═══ WEEK ═══
+view==="week"&&!selDay&&h(React.Fragment,null,
+h("div",{style:{marginBottom:10}},h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},h("span",{style:{fontSize:10,color:T.text4}},`Semaine ${week}`),h("span",{style:{fontSize:10,color:pc,fontWeight:700}},`${dC}/8`)),h("div",{style:{height:4,background:T.card2,borderRadius:2,overflow:"hidden"}},h("div",{style:{height:"100%",width:`${(dC/8)*100}%`,background:pc,borderRadius:2,transition:"width 0.3s"}}))),
 
-      // Phase pills
-      h("div",{style:{display:"flex",gap:4,marginBottom:10}},
-        [1,2,3].map(p=>h("button",{key:p,onClick:()=>{setPhase(p);setWeek(p===1?1:p===2?7:13);setView("week");setSelDay(null);setOpenEx(null)},style:{flex:1,padding:"7px 0",borderRadius:8,border:"none",cursor:"pointer",background:phase===p?PROGRAM[p].color:"#111118",color:phase===p?"#fff":"#444",fontSize:9,fontWeight:700,letterSpacing:1}},`PHASE ${p}`))
-      ),
+DAYS.map(day=>{const ses=cp.sessions[day],done=wDone[`${week}-${day}`];let tot=0,dn2=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){tot++;if(logs[sk(week,day,ei,s)]&&logs[sk(week,day,ei,s)].done)dn2++}});const pct=tot>0?Math.round((dn2/tot)*100):0;const vol=getVolume(day);
+return h("div",{key:day,onClick:()=>{setSelDay(day);setOpenEx(null)},style:{background:done?`${pc}${light?"15":"08"}`:T.card,border:`1px solid ${done?pc+"30":T.border}`,borderRadius:11,padding:"11px 13px",marginBottom:5,cursor:"pointer"}},
+h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",{style:{display:"flex",alignItems:"center",gap:9}},h("div",{style:{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:done?pc:T.card2,color:done?"#fff":T.text4,fontSize:10,fontWeight:800}},done?"✓":DL[day]),h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:done?pc:T.text2}},ses.title),h("div",{style:{fontSize:9,color:T.text4,marginTop:1}},ses.time," · ",ses.exercises.length," exos",vol>0?` · ${vol}kg vol`:""))),h("div",{style:{display:"flex",alignItems:"center",gap:6}},pct>0&&!done&&h("div",{style:{width:28,height:28,position:"relative"}},h("svg",{width:28,height:28,style:{transform:"rotate(-90deg)"}},h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:T.border,strokeWidth:3}),h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:pc,strokeWidth:3,strokeLinecap:"round",strokeDasharray:2*Math.PI*11,strokeDashoffset:2*Math.PI*11*(1-pct/100)})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:800,color:pc}},pct)),h("div",{style:{color:T.border,fontSize:13}},"›"))),
+FOOT[day]&&h("div",{style:{marginTop:5,padding:"3px 7px",borderRadius:5,background:light?"#dcfce7":"#0f1a0f",border:`1px solid ${light?"#86efac":"#1a2e1a"}`,fontSize:9,color:light?"#166534":"#4a4",display:"inline-block"}},"⚽ Foot"),
+notes[`${week}-${day}`]&&h("div",{style:{marginTop:4,fontSize:9,color:T.text4,fontStyle:"italic"}},"📝 ",notes[`${week}-${day}`].slice(0,50)),
+(bodyW[`${week}-${day}`]||sleepD[`${week}-${day}`])&&h("div",{style:{marginTop:3,fontSize:9,color:T.text4}},bodyW[`${week}-${day}`]?`⚖️ ${bodyW[`${week}-${day}`]}kg `:"",sleepD[`${week}-${day}`]?`😴 ${sleepD[`${week}-${day}`]}h`:"")
+)})),
 
-      // Tabs
-      h("div",{style:{display:"flex",gap:3,marginBottom:14}},
-        [{k:"week",l:"📋 Semaine"},{k:"history",l:"📊 Stats"},{k:"nutrition",l:"🍽 Nutrition"}].map(t=>
-          h("button",{key:t.k,onClick:()=>{setView(t.k);setSelDay(null);setOpenEx(null)},style:{flex:1,padding:"7px 0",borderRadius:8,border:"none",cursor:"pointer",background:view===t.k?"#1e1e2e":"transparent",color:view===t.k?"#fff":"#444",fontSize:11,fontWeight:600}},t.l)
-        )
-      ),
+// ═══ SESSION ═══
+view==="week"&&selDay&&(()=>{const ses=cp.sessions[selDay],nk=`${week}-${selDay}`,vol=getVolume(selDay);return h(React.Fragment,null,
+h("button",{onClick:()=>{setSelDay(null);setOpenEx(null)},style:{background:"none",border:"none",color:pc,fontSize:12,cursor:"pointer",padding:0,marginBottom:8}},"← Retour"),
+h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 14px",marginBottom:10}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1}},`${DF[selDay].toUpperCase()} · ${ses.time} · SEM ${week}`),h("div",{style:{fontSize:17,fontWeight:800,color:pc,marginTop:2}},ses.title),vol>0&&h("div",{style:{fontSize:10,color:T.text3,marginTop:2}},`Volume total : ${vol} kg`)),
+h(SessTimer,{color:pc,T}),
+// Per-session body/sleep
+h("div",{style:{display:"flex",gap:6,marginBottom:10}},
+  h("div",{style:{flex:1,display:"flex",alignItems:"center",gap:6,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 10px"}},h("span",{style:{fontSize:12}},"⚖️"),h("input",{type:"number",inputMode:"decimal",placeholder:"kg",value:bodyW[`${week}-${selDay}`]||"",onChange:e=>setBodyW(p=>({...p,[`${week}-${selDay}`]:e.target.value})),style:{width:50,padding:"4px 6px",borderRadius:6,border:`1px solid ${T.border}`,background:T.input,color:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"kg")),
+  h("div",{style:{flex:1,display:"flex",alignItems:"center",gap:6,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 10px"}},h("span",{style:{fontSize:12}},"😴"),h("input",{type:"number",inputMode:"decimal",placeholder:"h",value:sleepD[`${week}-${selDay}`]||"",onChange:e=>setSleepD(p=>({...p,[`${week}-${selDay}`]:e.target.value})),style:{width:50,padding:"4px 6px",borderRadius:6,border:`1px solid ${T.border}`,background:T.input,color:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"h"))
+),
+ses.exercises.map((ex,ei)=>{const isO=openEx===ei,allD=Array.from({length:ex.sets}).every((_,s)=>{const l=logs[sk(week,selDay,ei,s)];return l&&l.done}),isPR=PR_EX.some(p=>ex.name.toLowerCase().includes(p.toLowerCase()));
+// 1RM for current exercise
+let best1rm=0;for(let s=0;s<ex.sets;s++){const l=logs[sk(week,selDay,ei,s)];if(l&&l.kg&&l.reps){const r=e1rm(parseFloat(l.kg),l.reps);if(r>best1rm)best1rm=r}}
+return h("div",{key:ei,ref:el=>{exRefs.current[ei]=el},className:"scroll-target",style:{background:allD?`${pc}${light?"10":"06"}`:T.card,border:`1px solid ${allD?pc+(light?"30":"18"):T.border}`,borderRadius:10,marginBottom:5,overflow:"hidden"}},
+h("div",{onClick:()=>setOpenEx(isO?null:ei),style:{padding:"11px 13px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",{style:{flex:1}},h("div",{style:{fontSize:12,fontWeight:700,color:allD?pc:T.text2}},allD?"✓ ":"",ex.name),h("div",{style:{display:"flex",gap:8,alignItems:"center",marginTop:1}},h("span",{style:{fontSize:9,color:T.text4}},`${ex.sets}×${ex.reps} · ${ex.rest>0?fmt(ex.rest):"—"}`),best1rm>0&&h("span",{style:{fontSize:8,color:"#f59e0b",fontWeight:700}},`1RM≈${best1rm}kg`))),h("div",{style:{display:"flex",gap:3,alignItems:"center"}},isPR&&h("button",{onClick:e=>{e.stopPropagation();setHistEx(ex.name)},style:{background:T.card2,border:"none",borderRadius:5,padding:"3px 6px",cursor:"pointer",fontSize:9,color:T.text3}},"📈"),Array.from({length:ex.sets}).map((_,s)=>h("div",{key:s,style:{width:6,height:6,borderRadius:3,background:logs[sk(week,selDay,ei,s)]&&logs[sk(week,selDay,ei,s)].done?pc:T.card2}})),h("div",{style:{color:T.border,fontSize:11,marginLeft:4,transform:isO?"rotate(90deg)":"none",transition:"transform 0.15s"}},"›"))),
+isO&&h("div",{style:{padding:"0 13px 13px"}},(()=>{const last=getLL(selDay,ei,0);return last?h("div",{style:{fontSize:9,color:T.text4,marginBottom:8,padding:"4px 7px",background:T.input,borderRadius:5}},`Préc: ${last.kg}kg × ${last.reps}reps`):null})(),
+Array.from({length:ex.sets}).map((_,si)=>{const k=sk(week,selDay,ei,si),log=logs[k]||{},last=getLL(selDay,ei,si),iD=log.done;return h("div",{key:si,style:{display:"flex",alignItems:"center",gap:6,marginBottom:5}},h("div",{style:{width:24,fontSize:10,fontWeight:700,color:iD?pc:T.text4}},`S${si+1}`),h("input",{type:"number",inputMode:"decimal",placeholder:last&&last.kg||"kg",value:log.kg||"",onChange:e=>uField(selDay,ei,si,"kg",e.target.value),disabled:iD,style:{width:55,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"kg"),h("input",{type:"number",inputMode:"numeric",placeholder:last&&last.reps||"reps",value:log.reps||"",onChange:e=>uField(selDay,ei,si,"reps",e.target.value),disabled:iD,style:{width:45,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"r"),!iD?h("button",{onClick:()=>valSet(selDay,ei,si,ex.rest,ex.name),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"✓"):h("button",{onClick:()=>undoSet(selDay,ei,si),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:`${pc}20`,color:pc,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"↩"))}),
+ex.rest>0&&h("button",{onClick:()=>setTimer(ex.rest),style:{marginTop:6,padding:"6px 12px",borderRadius:7,border:`1px solid ${pc}30`,background:"transparent",color:pc,fontSize:10,fontWeight:600,cursor:"pointer",width:"100%"}},`⏱ ${fmt(ex.rest)}`)))}),
+// Sprint time
+(selDay==="mercredi"||selDay==="lundi"||selDay==="vendredi")&&ses.exercises.some(e=>e.name.toLowerCase().includes("sprint"))&&h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginTop:8,marginBottom:8}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1,marginBottom:6}},"⚡ TEMPS DE SPRINT"),h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("input",{type:"number",inputMode:"decimal",placeholder:"sec",value:sprints[`${week}-w${week}`]||"",onChange:e=>setSprints(p=>({...p,[`${week}-w${week}`]:e.target.value})),style:{width:70,padding:"6px 8px",borderRadius:7,border:`1px solid ${T.border}`,background:T.input,color:T.text,fontSize:13,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:10,color:T.text4}},"sec (meilleur 20m)"))),
+// Notes
+h("div",{style:{marginTop:8,marginBottom:8}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1,marginBottom:4}},"📝 NOTES"),h("textarea",{value:notes[nk]||"",onChange:e=>setNotes(p=>({...p,[nk]:e.target.value})),placeholder:"Énergie, douleurs, ressenti...",rows:2,style:{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.input,color:T.text2,fontSize:11,outline:"none",resize:"vertical"}})),
+h("button",{onClick:()=>togDay(selDay),style:{width:"100%",padding:"13px",borderRadius:11,border:"none",cursor:"pointer",marginTop:4,background:wDone[`${week}-${selDay}`]?T.card2:`linear-gradient(135deg,${pc},${pc}cc)`,color:wDone[`${week}-${selDay}`]?T.text3:"#fff",fontSize:13,fontWeight:700}},wDone[`${week}-${selDay}`]?"↩ Rouvrir":"✓ Terminer"))})(),
 
-      // WEEK VIEW
-      view==="week"&&!selDay&&h(React.Fragment,null,
-        h("div",{style:{marginBottom:14}},
-          h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
-            h("span",{style:{fontSize:10,color:"#555"}},`Semaine ${week}`),
-            h("span",{style:{fontSize:10,color:pc,fontWeight:700}},`${dComp}/8 séances`)
-          ),
-          h("div",{style:{height:4,background:"#111118",borderRadius:2,overflow:"hidden"}},
-            h("div",{style:{height:"100%",width:`${(dComp/8)*100}%`,background:pc,borderRadius:2,transition:"width 0.3s"}})
-          )
-        ),
-        DAYS.map(day=>{
-          const ses=cp.sessions[day],done=wDone[`${week}-${day}`];
-          let tot=0,dn2=0;
-          ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){tot++;if(logs[sk(week,day,ei,s)]&&logs[sk(week,day,ei,s)].done)dn2++}});
-          const pct=tot>0?Math.round((dn2/tot)*100):0;
-          return h("div",{key:day,onClick:()=>{setSelDay(day);setOpenEx(null)},style:{background:done?`${pc}08`:"#0e0e16",border:`1px solid ${done?pc+"25":"#1a1a28"}`,borderRadius:11,padding:"11px 13px",marginBottom:5,cursor:"pointer"}},
-            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-              h("div",{style:{display:"flex",alignItems:"center",gap:9}},
-                h("div",{style:{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:done?pc:"#111118",color:done?"#fff":"#555",fontSize:10,fontWeight:800}},done?"✓":DL[day]),
-                h("div",null,
-                  h("div",{style:{fontSize:12,fontWeight:700,color:done?pc:"#ccc"}},ses.title),
-                  h("div",{style:{fontSize:9,color:"#444",marginTop:1}},`${ses.time} · ${ses.exercises.length} exercices`)
-                )
-              ),
-              h("div",{style:{display:"flex",alignItems:"center",gap:6}},
-                pct>0&&!done&&h("div",{style:{width:28,height:28,position:"relative"}},
-                  h("svg",{width:28,height:28,style:{transform:"rotate(-90deg)"}},
-                    h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:"#1a1a28",strokeWidth:3}),
-                    h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:pc,strokeWidth:3,strokeLinecap:"round",strokeDasharray:2*Math.PI*11,strokeDashoffset:2*Math.PI*11*(1-pct/100)})
-                  ),
-                  h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:800,color:pc}},pct)
-                ),
-                h("div",{style:{color:"#2a2a3a",fontSize:13}},"›")
-              )
-            ),
-            FOOT[day]&&h("div",{style:{marginTop:5,padding:"3px 7px",borderRadius:5,background:"#0f1a0f",border:"1px solid #1a2e1a",fontSize:9,color:"#4a4",display:"inline-block"}},"⚽ Football le soir")
-          );
-        })
-      ),
+// ═══ STATS ═══
+view==="stats"&&h(React.Fragment,null,
+h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"14px",marginBottom:14,textAlign:"center"}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1,marginBottom:2}},"SÉANCES"),h("div",{style:{fontSize:36,fontWeight:800,color:pc}},Object.values(wDone).filter(Boolean).length)),
+bwArr.length>1&&h(React.Fragment,null,h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginBottom:6}},"⚖️ POIDS DE CORPS"),h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px",marginBottom:14}},h(MiniChart,{data:bwArr,color:"#22c55e",width:300,height:120,id:"bw"}),h("div",{style:{display:"flex",justifyContent:"space-around",marginTop:8}},h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:9,color:T.text4}},"DÉBUT"),h("div",{style:{fontSize:14,fontWeight:800,color:T.text3}},`${bwArr[0].v}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:9,color:T.text4}},"ACTUEL"),h("div",{style:{fontSize:14,fontWeight:800,color:"#22c55e"}},`${bwArr[bwArr.length-1].v}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:9,color:T.text4}},"DIFF"),h("div",{style:{fontSize:14,fontWeight:800,color:bwArr[bwArr.length-1].v>=bwArr[0].v?"#22c55e":"#e94560"}},`${(bwArr[bwArr.length-1].v-bwArr[0].v)>0?"+":""}${(bwArr[bwArr.length-1].v-bwArr[0].v).toFixed(1)}kg`))))),
+slArr.length>1&&h(React.Fragment,null,h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginBottom:6}},"😴 SOMMEIL"),h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px",marginBottom:14}},h(MiniChart,{data:slArr,color:"#8b5cf6",width:300,height:100,id:"sl"}),h("div",{style:{textAlign:"center",marginTop:6}},h("div",{style:{fontSize:9,color:T.text4}},"MOYENNE"),h("div",{style:{fontSize:16,fontWeight:800,color:slArr.reduce((a,b)=>a+b.v,0)/slArr.length>=7.5?"#22c55e":"#e94560"}},`${(slArr.reduce((a,b)=>a+b.v,0)/slArr.length).toFixed(1)}h`)))),
+spArr.length>1&&h(React.Fragment,null,h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginBottom:6}},"⚡ SPRINTS 20M"),h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px",marginBottom:14}},h(MiniChart,{data:spArr,color:"#f59e0b",width:300,height:100,id:"sp"}))),
+h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginBottom:6}},"PAR SEMAINE"),
+Array.from({length:16}).map((_,i)=>{const w=i+1,count=DAYS.filter(d=>wDone[`${w}-${d}`]).length,p=gp(w),c=PROGRAM[p].color,cur=w===gw(),dl=DELOAD.includes(w);return h("div",{key:w,style:{display:"flex",alignItems:"center",gap:6,marginBottom:2,opacity:w>gw()?0.2:1}},h("div",{style:{fontSize:9,color:cur?c:dl?"#f59e0b":T.text5,fontWeight:cur?800:400,width:18,textAlign:"right"}},w),dl&&h("div",{style:{fontSize:7,color:"#f59e0b",width:8}},"⚡"),h("div",{style:{flex:1,height:14,background:T.card2,borderRadius:3,overflow:"hidden"}},h("div",{style:{height:"100%",width:`${(count/6)*100}%`,background:c,borderRadius:3}})),h("div",{style:{fontSize:9,color:T.text5,width:14,textAlign:"right"}},count))})),
 
-      // SESSION VIEW
-      view==="week"&&selDay&&(()=>{
-        const ses=cp.sessions[selDay];
-        return h(React.Fragment,null,
-          h("button",{onClick:()=>{setSelDay(null);setOpenEx(null)},style:{background:"none",border:"none",color:pc,fontSize:12,cursor:"pointer",padding:0,marginBottom:8}},"← Retour"),
-          h("div",{style:{background:"#0e0e16",border:"1px solid #1a1a28",borderRadius:12,padding:"12px 14px",marginBottom:12}},
-            h("div",{style:{fontSize:9,color:"#555",letterSpacing:1}},`${DF[selDay].toUpperCase()} · ${ses.time} · SEMAINE ${week}`),
-            h("div",{style:{fontSize:17,fontWeight:800,color:pc,marginTop:2}},ses.title)
-          ),
-          ses.exercises.map((ex,ei)=>{
-            const isOpen=openEx===ei;
-            const allDone=Array.from({length:ex.sets}).every((_,s)=>{const l=logs[sk(week,selDay,ei,s)];return l&&l.done});
-            return h("div",{key:ei,style:{background:allDone?`${pc}06`:"#0e0e16",border:`1px solid ${allDone?pc+"18":"#1a1a28"}`,borderRadius:10,marginBottom:5,overflow:"hidden"}},
-              h("div",{onClick:()=>setOpenEx(isOpen?null:ei),style:{padding:"11px 13px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-                h("div",null,
-                  h("div",{style:{fontSize:12,fontWeight:700,color:allDone?pc:"#ccc"}},allDone?"✓ ":"",ex.name),
-                  h("div",{style:{fontSize:9,color:"#444",marginTop:1}},`${ex.sets} × ${ex.reps} · repos ${ex.rest>0?ft(ex.rest):"—"}`)
-                ),
-                h("div",{style:{display:"flex",gap:3,alignItems:"center"}},
-                  Array.from({length:ex.sets}).map((_,s)=>h("div",{key:s,style:{width:6,height:6,borderRadius:3,background:logs[sk(week,selDay,ei,s)]&&logs[sk(week,selDay,ei,s)].done?pc:"#1e1e2e"}})),
-                  h("div",{style:{color:"#2a2a3a",fontSize:11,marginLeft:4,transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.15s"}},"›")
-                )
-              ),
-              isOpen&&h("div",{style:{padding:"0 13px 13px"}},
-                (()=>{const last=getLastLog(selDay,ei,0);return last?h("div",{style:{fontSize:9,color:"#444",marginBottom:8,padding:"4px 7px",background:"#08080e",borderRadius:5}},`Semaine précédente : ${last.kg} kg × ${last.reps} reps`):null})(),
-                Array.from({length:ex.sets}).map((_,si)=>{
-                  const k=sk(week,selDay,ei,si),log=logs[k]||{},last=getLastLog(selDay,ei,si),isDone=log.done;
-                  return h("div",{key:si,style:{display:"flex",alignItems:"center",gap:6,marginBottom:5}},
-                    h("div",{style:{width:24,fontSize:10,fontWeight:700,color:isDone?pc:"#444"}},`S${si+1}`),
-                    h("input",{type:"number",inputMode:"decimal",placeholder:last&&last.kg||"kg",value:log.kg||"",onChange:e=>updateField(selDay,ei,si,"kg",e.target.value),disabled:isDone,style:{width:55,padding:"6px 7px",borderRadius:7,border:`1px solid ${isDone?pc+"30":"#222"}`,background:isDone?`${pc}08`:"#08080e",color:isDone?pc:"#fff",fontSize:12,textAlign:"center",outline:"none"}}),
-                    h("span",{style:{fontSize:9,color:"#444"}},"kg"),
-                    h("input",{type:"number",inputMode:"numeric",placeholder:last&&last.reps||"reps",value:log.reps||"",onChange:e=>updateField(selDay,ei,si,"reps",e.target.value),disabled:isDone,style:{width:45,padding:"6px 7px",borderRadius:7,border:`1px solid ${isDone?pc+"30":"#222"}`,background:isDone?`${pc}08`:"#08080e",color:isDone?pc:"#fff",fontSize:12,textAlign:"center",outline:"none"}}),
-                    h("span",{style:{fontSize:9,color:"#444"}},"reps"),
-                    !isDone?h("button",{onClick:()=>validateSet(selDay,ei,si,ex.rest),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:"#1a1a2e",color:"#888",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"✓"):
-                    h("button",{onClick:()=>undoSet(selDay,ei,si),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:`${pc}20`,color:pc,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"↩")
-                  );
-                }),
-                ex.rest>0&&h("button",{onClick:()=>setTimer(ex.rest),style:{marginTop:6,padding:"6px 12px",borderRadius:7,border:`1px solid ${pc}30`,background:"transparent",color:pc,fontSize:10,fontWeight:600,cursor:"pointer",width:"100%"}},`⏱ Lancer repos (${ft(ex.rest)})`)
-              )
-            );
-          }),
-          h("button",{onClick:()=>toggleDay(selDay),style:{width:"100%",padding:"13px",borderRadius:11,border:"none",cursor:"pointer",marginTop:8,background:wDone[`${week}-${selDay}`]?"#1a1a2e":`linear-gradient(135deg,${pc},${pc}cc)`,color:"#fff",fontSize:13,fontWeight:700}},wDone[`${week}-${selDay}`]?"↩ Rouvrir la séance":"✓ Terminer la séance")
-        );
-      })(),
+// ═══ PRS ═══
+view==="prs"&&h(React.Fragment,null,h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginBottom:10}},"🏆 RECORDS PERSONNELS"),PR_EX.map(exN=>{const pr=getPR(exN);let best1rm=0;for(let w=1;w<=16;w++)for(const d of DAYS){const p=gp(w),ses=PROGRAM[p].sessions[d];if(!ses)continue;const idx=ses.exercises.findIndex(e=>e.name.toLowerCase().includes(exN.toLowerCase()));if(idx>=0){for(let s=0;s<10;s++){const l=logs[sk(w,d,idx,s)];if(l&&l.kg&&l.reps){const r=e1rm(parseFloat(l.kg),l.reps);if(r>best1rm)best1rm=r}}break}}
+return h("div",{key:exN,onClick:()=>pr&&setHistEx(exN),style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:4,cursor:pr?"pointer":"default",display:"flex",justifyContent:"space-between",alignItems:"center",opacity:pr?1:0.4}},h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:pr?T.text2:T.text4}},exN),pr?h("div",{style:{fontSize:9,color:T.text4}},`1RM estimé: ${best1rm}kg`):null),h("div",{style:{display:"flex",alignItems:"center",gap:6}},h("div",{style:{fontSize:pr?18:11,fontWeight:800,color:pr?"#f59e0b":T.text4}},pr?`${pr}kg`:"—"),pr&&h("div",{style:{fontSize:14}},"🏆")))})),
 
-      // HISTORY
-      view==="history"&&h(React.Fragment,null,
-        h("div",{style:{background:"#0e0e16",border:"1px solid #1a1a28",borderRadius:12,padding:"14px",marginBottom:14,textAlign:"center"}},
-          h("div",{style:{fontSize:9,color:"#555",letterSpacing:1,marginBottom:2}},"SÉANCES COMPLÉTÉES"),
-          h("div",{style:{fontSize:36,fontWeight:800,color:pc}},Object.values(wDone).filter(Boolean).length)
-        ),
-        h("div",{style:{fontSize:10,fontWeight:700,color:"#444",letterSpacing:1,marginBottom:6}},"PAR SEMAINE"),
-        Array.from({length:16}).map((_,i)=>{
-          const w=i+1,count=DAYS.filter(d=>wDone[`${w}-${d}`]).length,p=gp(w),c=PROGRAM[p].color,cur=w===gw();
-          return h("div",{key:w,style:{display:"flex",alignItems:"center",gap:6,marginBottom:2,opacity:w>gw()?0.2:1}},
-            h("div",{style:{fontSize:9,color:cur?c:"#444",fontWeight:cur?800:400,width:18,textAlign:"right"}},w),
-            h("div",{style:{flex:1,height:14,background:"#111118",borderRadius:3,overflow:"hidden"}},
-              h("div",{style:{height:"100%",width:`${(count/6)*100}%`,background:c,borderRadius:3}})
-            ),
-            h("div",{style:{fontSize:9,color:"#444",width:14,textAlign:"right"}},count)
-          );
-        }),
-        h("div",{style:{fontSize:10,fontWeight:700,color:"#444",letterSpacing:1,marginTop:18,marginBottom:6}},"PROGRESSION CHARGES (S1)"),
-        ["Back squat","Développé couché","Deadlift","Tractions"].map(exN=>{
-          const vals=[];
-          for(let w=1;w<=16;w++)for(const d of DAYS){const p=gp(w),ses=PROGRAM[p].sessions[d];if(!ses)continue;const idx=ses.exercises.findIndex(e=>e.name.toLowerCase().includes(exN.toLowerCase()));if(idx>=0){const v=logs[sk(w,d,idx,0)];if(v&&v.kg)vals.push({w,kg:parseFloat(v.kg)});break}}
-          if(!vals.length)return null;
-          const maxKg=Math.max(...vals.map(v=>v.kg)),latest=vals[vals.length-1];
-          return h("div",{key:exN,style:{background:"#0e0e16",border:"1px solid #1a1a28",borderRadius:9,padding:"9px 11px",marginBottom:4,display:"flex",justifyContent:"space-between"}},
-            h("div",null,h("div",{style:{fontSize:11,fontWeight:700,color:"#bbb"}},exN),h("div",{style:{fontSize:9,color:"#444"}},`${vals.length} entrée(s)`)),
-            h("div",{style:{textAlign:"right"}},h("div",{style:{fontSize:15,fontWeight:800,color:pc}},`${latest.kg} kg`),h("div",{style:{fontSize:9,color:"#444"}},`Max ${maxKg} kg`))
-          );
-        }),
-        h("button",{onClick:()=>{if(confirm("Tout supprimer ?")){setLogs({});setWDone({});setMeals({});S.del("ft-logs");S.del("ft-wdone");S.del("ft-meals")}},style:{marginTop:16,padding:"8px",borderRadius:7,border:"1px solid #2a1515",background:"transparent",color:"#944",fontSize:10,cursor:"pointer",width:"100%"}},"Réinitialiser")
-      ),
+// ═══ NUTRITION ═══
+view==="nutrition"&&(()=>{const mi=[{id:"meal-0",t:"5h30",m:"Petit-déj",c:"Flocons+banane+whey+beurre cacahuète",icon:"🥣"},{id:"meal-1",t:"10h",m:"Collation",c:"Pomme+30g amandes",icon:"🍎"},{id:"meal-2",t:"12h",m:"Déjeuner",c:"180g poulet+200g riz+légumes",icon:"🍗"},{id:"meal-3",t:"16h",m:"Goûter",c:"Pain complet+2 œufs ou thon",icon:"🥪"},{id:"meal-4",t:"20h",m:"Dîner",c:"150g saumon/bœuf+patate douce+légumes",icon:"🥩"},{id:"meal-5",t:"22h",m:"Coucher",c:"Fromage blanc 0%+noix",icon:"🥛"}];const ei=[{id:"creatine",label:"Créatine 5g",icon:"💊"},{id:"water",label:"Eau 2,5L+",icon:"💧"},{id:"sleep",label:"Couché <22h30",icon:"😴"}];const cM=mi.filter(m=>isMD(m.id)).length,cE=ei.filter(e=>isMD(e.id)).length,tot=cM+cE,tAll=mi.length+ei.length;return h(React.Fragment,null,
+h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"14px",marginBottom:10}},h("div",{style:{fontSize:13,fontWeight:800,color:pc,marginBottom:8}},"Macros"),[{l:"Calories",v:"2600-2800",s:"2400 repos"},{l:"Protéines",v:"140-150g",s:"2g/kg"},{l:"Glucides",v:"300-350g",s:"+50g foot"},{l:"Lipides",v:"70-80g",s:""}].map(n=>h("div",{key:n.l,style:{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${T.border}`}},h("div",{style:{fontSize:11,color:T.text3}},n.l),h("div",{style:{textAlign:"right"}},h("span",{style:{fontSize:12,fontWeight:700,color:T.text2}},n.v),n.s&&h("span",{style:{fontSize:9,color:T.text4,marginLeft:4}},n.s))))),
+h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1}},"CHECKLIST"),h("div",{style:{fontSize:10,color:tot===tAll?"#22c55e":pc,fontWeight:700}},`${tot}/${tAll}${tot===tAll?" ✓":""}`)),
+h("div",{style:{height:4,background:T.card2,borderRadius:2,overflow:"hidden",marginBottom:10}},h("div",{style:{height:"100%",width:`${(tot/tAll)*100}%`,background:tot===tAll?"#22c55e":pc,borderRadius:2}})),
+mi.map(r=>{const ck=isMD(r.id);return h("div",{key:r.id,onClick:()=>togMeal(r.id),style:{background:ck?`${pc}${light?"12":"08"}`:T.card,border:`1px solid ${ck?pc+"30":T.border}`,borderRadius:9,padding:"10px 12px",marginBottom:4,cursor:"pointer"}},h("div",{style:{display:"flex",alignItems:"center",gap:10}},h("div",{style:{width:26,height:26,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:ck?pc:T.card2,color:ck?"#fff":T.text4,fontSize:ck?12:14,fontWeight:800,flexShrink:0}},ck?"✓":r.icon),h("div",{style:{flex:1}},h("div",{style:{display:"flex",gap:6}},h("span",{style:{fontSize:10,fontWeight:700,color:ck?pc:T.text3}},r.t),h("span",{style:{fontSize:11,fontWeight:700,color:ck?pc:T.text2,textDecoration:ck?"line-through":"none"}},r.m)),h("div",{style:{fontSize:9,color:T.text4,marginTop:1}},r.c))))}),
+h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginTop:10,marginBottom:6}},"ESSENTIELS"),
+ei.map(e=>{const ck=isMD(e.id);return h("div",{key:e.id,onClick:()=>togMeal(e.id),style:{background:ck?`${pc}${light?"12":"08"}`:T.card,border:`1px solid ${ck?pc+"30":T.border}`,borderRadius:9,padding:"10px 12px",marginBottom:4,cursor:"pointer",display:"flex",alignItems:"center",gap:10}},h("div",{style:{width:26,height:26,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:ck?pc:T.card2,color:ck?"#fff":T.text4,fontSize:ck?12:14,fontWeight:800,flexShrink:0}},ck?"✓":e.icon),h("div",{style:{fontSize:12,fontWeight:600,color:ck?pc:T.text2,textDecoration:ck?"line-through":"none"}},e.label))}))})(),
 
-      // NUTRITION
-      view==="nutrition"&&(()=>{
-        const mealItems=[
-          {id:"meal-0",t:"5h30",m:"Petit-déj",c:"80g flocons d'avoine + banane + 30g whey + beurre de cacahuète",icon:"🥣"},
-          {id:"meal-1",t:"10h",m:"Collation",c:"Pomme + 30g amandes",icon:"🍎"},
-          {id:"meal-2",t:"12h",m:"Déjeuner",c:"180g poulet + 200g riz + légumes + huile d'olive",icon:"🍗"},
-          {id:"meal-3",t:"16h",m:"Goûter",c:"2 tartines complet + 2 œufs ou thon",icon:"🥪"},
-          {id:"meal-4",t:"20h",m:"Dîner",c:"150g saumon/bœuf + 200g patate douce + légumes",icon:"🥩"},
-          {id:"meal-5",t:"22h",m:"Coucher",c:"200g fromage blanc 0% + 20g noix",icon:"🥛"}
-        ];
-        const extraItems=[
-          {id:"creatine",label:"Créatine 5g",icon:"💊"},
-          {id:"water",label:"Eau 2,5L minimum",icon:"💧"},
-          {id:"sleep",label:"Couché avant 22h30",icon:"😴"}
-        ];
-        const cM=mealItems.filter(m=>isMealDone(m.id)).length;
-        const cE=extraItems.filter(e=>isMealDone(e.id)).length;
-        const total=cM+cE,totalAll=mealItems.length+extraItems.length;
+// ═══ SETTINGS ═══
+view==="settings"&&h(React.Fragment,null,
+h("div",{style:{fontSize:14,fontWeight:800,color:pc,marginBottom:16}},"Paramètres"),
+h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px",marginBottom:8}},h("div",{style:{fontSize:12,fontWeight:600,color:T.text2}},"Thème"),h("button",{onClick:()=>setLight(l=>!l),style:{padding:"6px 16px",borderRadius:8,border:"none",cursor:"pointer",background:light?"#1a1a2e":"#f5f5f0",color:light?"#fff":"#1a1a1a",fontSize:11,fontWeight:700}},light?"🌙 Sombre":"☀️ Clair")),
+h("button",{onClick:exportD,style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${light?"#16a34a33":"#1a2e1a"}`,background:light?"#f0fdf4":"#0f1a0f",color:light?"#166534":"#4a4",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},"📥 Exporter (JSON)"),
+h("label",{style:{display:"block",width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8,textAlign:"center"}},"📤 Importer",h("input",{type:"file",accept:".json",onChange:importD,style:{display:"none"}})),
+h("button",{onClick:()=>{if(confirm("Supprimer TOUT ?")){setLogs({});setWDone({});setMeals({});setNotes({});setBodyW({});setSleepD({});setSprints({});["ft-logs","ft-wdone","ft-meals","ft-notes","ft-bw","ft-sleep","ft-sprints"].forEach(k=>LS.del(k))}},style:{width:"100%",padding:"13px",borderRadius:10,border:"1px solid #ef444433",background:"transparent",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",marginTop:8}},"🗑 Réinitialiser"),
+h("div",{style:{marginTop:24,textAlign:"center",fontSize:9,color:T.text5}},"Prépa Foot v3.0 · 4 août 2026"))))}
 
-        return h(React.Fragment,null,
-          h("div",{style:{background:"#0e0e16",border:"1px solid #1a1a28",borderRadius:12,padding:"14px",marginBottom:10}},
-            h("div",{style:{fontSize:13,fontWeight:800,color:pc,marginBottom:8}},"Objectifs journaliers"),
-            [{l:"Calories",v:"2600-2800 kcal",s:"2400 repos"},{l:"Protéines",v:"140-150g",s:"2g/kg"},{l:"Glucides",v:"300-350g",s:"+50g jours foot"},{l:"Lipides",v:"70-80g",s:"bonnes graisses"}].map(n=>
-              h("div",{key:n.l,style:{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #141420"}},
-                h("div",{style:{fontSize:11,color:"#888"}},n.l),
-                h("div",{style:{textAlign:"right"}},h("div",{style:{fontSize:12,fontWeight:700,color:"#ddd"}},n.v),h("div",{style:{fontSize:9,color:"#444"}},n.s))
-              )
-            )
-          ),
-          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
-            h("div",{style:{fontSize:10,fontWeight:700,color:"#444",letterSpacing:1}},"CHECKLIST DU JOUR"),
-            h("div",{style:{fontSize:10,color:total===totalAll?"#22c55e":pc,fontWeight:700}},`${total}/${totalAll}${total===totalAll?" ✓":""}`)
-          ),
-          h("div",{style:{height:4,background:"#111118",borderRadius:2,overflow:"hidden",marginBottom:10}},
-            h("div",{style:{height:"100%",width:`${(total/totalAll)*100}%`,background:total===totalAll?"#22c55e":pc,borderRadius:2,transition:"width 0.3s"}})
-          ),
-          mealItems.map(r=>{
-            const checked=isMealDone(r.id);
-            return h("div",{key:r.id,onClick:()=>toggleMeal(r.id),style:{background:checked?`${pc}08`:"#0e0e16",border:`1px solid ${checked?pc+"25":"#1a1a28"}`,borderRadius:9,padding:"10px 12px",marginBottom:4,cursor:"pointer",transition:"all 0.15s"}},
-              h("div",{style:{display:"flex",alignItems:"center",gap:10}},
-                h("div",{style:{width:26,height:26,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:checked?pc:"#151520",color:checked?"#fff":"#444",fontSize:checked?12:14,fontWeight:800,flexShrink:0}},checked?"✓":r.icon),
-                h("div",{style:{flex:1}},
-                  h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
-                    h("span",{style:{fontSize:10,fontWeight:700,color:checked?pc:"#888"}},r.t),
-                    h("span",{style:{fontSize:11,fontWeight:700,color:checked?pc:"#bbb",textDecoration:checked?"line-through":"none"}},r.m)
-                  ),
-                  h("div",{style:{fontSize:9,color:checked?"#444":"#555",lineHeight:1.4,marginTop:1}},r.c)
-                )
-              )
-            );
-          }),
-          h("div",{style:{fontSize:10,fontWeight:700,color:"#444",letterSpacing:1,marginTop:10,marginBottom:6}},"ESSENTIELS"),
-          extraItems.map(e=>{
-            const checked=isMealDone(e.id);
-            return h("div",{key:e.id,onClick:()=>toggleMeal(e.id),style:{background:checked?`${pc}08`:"#0e0e16",border:`1px solid ${checked?pc+"25":"#1a1a28"}`,borderRadius:9,padding:"10px 12px",marginBottom:4,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"all 0.15s"}},
-              h("div",{style:{width:26,height:26,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:checked?pc:"#151520",color:checked?"#fff":"#444",fontSize:checked?12:14,fontWeight:800,flexShrink:0}},checked?"✓":e.icon),
-              h("div",{style:{fontSize:12,fontWeight:600,color:checked?pc:"#bbb",textDecoration:checked?"line-through":"none"}},e.label)
-            );
-          })
-        );
-      })()
-    )
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
 </script>
 </body>
 </html>
