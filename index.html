@@ -16,6 +16,13 @@ input[type=number]{-moz-appearance:textfield}
 textarea{font-family:inherit}
 @keyframes prPulse{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes splashPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:0.8}}
+@keyframes splashLine{from{width:0}to{width:60%}}
+@keyframes splashGlow{0%{box-shadow:0 0 20px rgba(233,69,96,0)}50%{box-shadow:0 0 60px rgba(233,69,96,0.3)}100%{box-shadow:0 0 20px rgba(233,69,96,0)}}
+@keyframes splashFadeOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.05)}}
+@keyframes splashTextUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes splashCountdown{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}
+@keyframes dashDraw{to{stroke-dashoffset:0}}
 .pr-badge{animation:prPulse 0.6s ease-in-out}
 .fade-in{animation:fadeIn 0.3s ease-out}
 .scroll-target{scroll-margin-top:10px}
@@ -62,9 +69,45 @@ function ExHist({exName,logs,color,onClose,T}){const data=[];for(let w=1;w<=16;w
 return h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",padding:20,color:T.text}},h("div",{className:"fade-in",style:{background:T.card2,border:`1px solid ${T.border}`,borderRadius:16,padding:20,width:"100%",maxWidth:360}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},h("div",{style:{fontSize:14,fontWeight:800,color}},exName),h("button",{onClick:onClose,style:{background:"none",border:"none",color:T.text4,fontSize:18,cursor:"pointer"}},"✕")),data.length>0?h(React.Fragment,null,h("div",{style:{display:"flex",justifyContent:"space-around",marginBottom:16}},h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"RECORD"),h("div",{style:{fontSize:20,fontWeight:800,color:"#f59e0b"}},`${mx}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"1RM EST."),h("div",{style:{fontSize:20,fontWeight:800,color:"#22c55e"}},`${best1rm}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"DERNIER"),h("div",{style:{fontSize:20,fontWeight:800,color}},`${data[data.length-1].v}kg`))),h(MiniChart,{data,color,width:300,height:140,id:exName.slice(0,3)}),h("div",{style:{marginTop:16,maxHeight:140,overflowY:"auto"}},data.map((d,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}},h("span",{style:{color:T.text3}},`Sem ${d.w}`),h("span",null,h("span",{style:{color:T.text2,fontWeight:700}},`${d.v}kg × ${d.reps}`),h("span",{style:{color:T.text4,marginLeft:6,fontSize:9}},`1RM≈${e1rm(d.v,d.reps)}kg`)))))):h("div",{style:{textAlign:"center",color:T.text4,padding:20,fontSize:12}},"Aucune donnée")))}
 
 // ════════════════════
+// SPLASH SCREEN
+// ════════════════════
+function Splash({onDone}){
+const[phase,setPhase]=useState(0);
+const dG=Math.max(0,Math.ceil((new Date("2026-08-04")-new Date())/864e5));
+useEffect(()=>{const t1=setTimeout(()=>setPhase(1),300);const t2=setTimeout(()=>setPhase(2),900);const t3=setTimeout(()=>setPhase(3),1600);const t4=setTimeout(onDone,2600);return()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);clearTimeout(t4)}},[onDone]);
+return h("div",{style:{position:"fixed",inset:0,zIndex:2000,background:"#0a0a0f",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:phase>=3?"splashFadeOut 0.8s ease-in-out forwards":"none"}},
+// Glow
+h("div",{style:{position:"absolute",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(233,69,96,0.15) 0%,transparent 70%)",animation:"splashGlow 2s ease-in-out infinite"}}),
+// Icon
+h("div",{style:{position:"relative",marginBottom:24}},
+  h("svg",{width:80,height:80,viewBox:"0 0 80 80",style:{animation:phase>=0?"splashPulse 2s ease-in-out infinite":"none"}},
+    h("circle",{cx:40,cy:40,r:36,fill:"none",stroke:"#e94560",strokeWidth:3,strokeDasharray:226,strokeDashoffset:phase>=0?0:226,style:{transition:"stroke-dashoffset 1.5s ease-out"}}),
+    h("text",{x:40,y:46,textAnchor:"middle",fill:"#e94560",fontSize:28,fontWeight:800,fontFamily:"-apple-system,sans-serif"},"⚡")
+  )
+),
+// Title
+phase>=1&&h("div",{style:{animation:"splashTextUp 0.6s ease-out",textAlign:"center"}},
+  h("div",{style:{fontSize:10,letterSpacing:6,color:"#555",marginBottom:6}},"PRÉPA PHYSIQUE"),
+  h("div",{style:{fontSize:28,fontWeight:800,color:"#e94560",letterSpacing:-1}},"FOOTBALL"),
+  h("div",{style:{height:2,width:"60%",margin:"12px auto",background:"linear-gradient(90deg,transparent,#e94560,transparent)",animation:"splashLine 0.8s ease-out"}})
+),
+// Countdown
+phase>=2&&h("div",{style:{animation:"splashCountdown 0.5s ease-out",textAlign:"center",marginTop:8}},
+  h("div",{style:{fontSize:40,fontWeight:800,color:"#fff"}},`J-${dG}`),
+  h("div",{style:{fontSize:11,color:"#555",marginTop:4,letterSpacing:2}},"4 AOÛT 2026")
+),
+// Loading bar
+h("div",{style:{position:"absolute",bottom:60,width:120,height:3,background:"#151520",borderRadius:2,overflow:"hidden"}},
+  h("div",{style:{height:"100%",background:"#e94560",borderRadius:2,transition:"width 2s ease-out",width:phase>=1?"100%":"0%"}})
+),
+h("div",{style:{position:"absolute",bottom:36,fontSize:9,color:"#333",letterSpacing:2}},"v3.0")
+)}
+
+// ════════════════════
 // MAIN APP
 // ════════════════════
 function App(){
+const[splash,setSplash]=useState(()=>!LS.get("ft-no-splash"));
 const[phase,setPhase]=useState(()=>gp(gw()));const[week,setWeek]=useState(()=>gw());const[selDay,setSelDay]=useState(null);const[openEx,setOpenEx]=useState(null);
 const[logs,setLogs]=useState(()=>LS.get("ft-logs")||{});const[wDone,setWDone]=useState(()=>LS.get("ft-wdone")||{});const[meals,setMeals]=useState(()=>LS.get("ft-meals")||{});const[notes,setNotes]=useState(()=>LS.get("ft-notes")||{});const[bodyW,setBodyW]=useState(()=>LS.get("ft-bw")||{});const[sleepD,setSleepD]=useState(()=>LS.get("ft-sleep")||{});const[sprints,setSprints]=useState(()=>LS.get("ft-sprints")||{});
 const[timer,setTimer]=useState(null);const[view,setView]=useState("week");const[prB,setPrB]=useState(null);const[histEx,setHistEx]=useState(null);
@@ -99,7 +142,9 @@ const bwArr=Object.entries(bodyW).filter(e=>e[1]).map(([k,v])=>{const[w,d]=k.spl
 const slArr=Object.entries(sleepD).filter(e=>e[1]).map(([k,v])=>{const[w,d]=k.split("-");return{w:parseInt(w),d,v:parseFloat(v),sort:parseInt(w)*10+((dayOrder[d])||0)}}).sort((a,b)=>a.sort-b.sort).slice(-14).map((e,i)=>({w:e.w,v:e.v,label:`S${e.w}`}));
 const spArr=Object.entries(sprints).sort((a,b)=>a[0].localeCompare(b[0])).map((e,i)=>({w:i+1,v:parseFloat(e[1]),label:`S${e[0].split("-w")[1]||i+1}`}));
 
-return h("div",{style:{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'SF Pro Display',-apple-system,sans-serif",maxWidth:480,margin:"0 auto",transition:"background 0.3s, color 0.3s"}},
+return h(React.Fragment,null,
+splash&&h(Splash,{onDone:()=>setSplash(false)}),
+h("div",{style:{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'SF Pro Display',-apple-system,sans-serif",maxWidth:480,margin:"0 auto",transition:"background 0.3s, color 0.3s"}},
 timer!==null&&h(RestTimer,{duration:timer,color:pc,onDone:()=>setTimer(null),T}),
 prB&&h(PRBanner,{...prB,onClose:()=>setPrB(null)}),
 histEx&&h(ExHist,{exName:histEx,logs,color:pc,onClose:()=>setHistEx(null),T}),
@@ -189,7 +234,7 @@ h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center
 h("button",{onClick:exportD,style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${light?"#16a34a33":"#1a2e1a"}`,background:light?"#f0fdf4":"#0f1a0f",color:light?"#166534":"#4a4",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},"📥 Exporter (JSON)"),
 h("label",{style:{display:"block",width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8,textAlign:"center"}},"📤 Importer",h("input",{type:"file",accept:".json",onChange:importD,style:{display:"none"}})),
 h("button",{onClick:()=>{if(confirm("Supprimer TOUT ?")){setLogs({});setWDone({});setMeals({});setNotes({});setBodyW({});setSleepD({});setSprints({});["ft-logs","ft-wdone","ft-meals","ft-notes","ft-bw","ft-sleep","ft-sprints"].forEach(k=>LS.del(k))}},style:{width:"100%",padding:"13px",borderRadius:10,border:"1px solid #ef444433",background:"transparent",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",marginTop:8}},"🗑 Réinitialiser"),
-h("div",{style:{marginTop:24,textAlign:"center",fontSize:9,color:T.text5}},"Prépa Foot v3.0 · 4 août 2026"))))}
+h("div",{style:{marginTop:24,textAlign:"center",fontSize:9,color:T.text5}},"Prépa Foot v3.0 · 4 août 2026")))))}
 
 ReactDOM.createRoot(document.getElementById("root")).render(h(App));
 </script>
