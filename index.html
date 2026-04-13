@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0a0a0f"/>
@@ -10,7 +10,8 @@
 <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlByw6lwYSBGb290IiwKICAic2hvcnRfbmFtZSI6ICJQcsOpcGEiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBhMGEwZiIsCiAgInRoZW1lX2NvbG9yIjogIiMwYTBhMGYiCn0="/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+html{background:#0a0a0f}
+body{-webkit-font-smoothing:antialiased;overscroll-behavior:none;background:#0a0a0f;padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom)}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
 textarea{font-family:inherit}
@@ -113,6 +114,7 @@ const[logs,setLogs]=useState(()=>LS.get("ft-logs")||{});const[wDone,setWDone]=us
 const[timer,setTimer]=useState(null);const[view,setView]=useState("week");const[prB,setPrB]=useState(null);const[histEx,setHistEx]=useState(null);
 const[light,setLight]=useState(()=>LS.get("ft-theme")==="light");
 const T=light?LIGHT:DARK;
+useEffect(()=>{document.documentElement.style.background=T.bg;document.body.style.background=T.bg},[T.bg]);
 const exRefs=useRef({});
 
 useEffect(()=>{LS.set("ft-logs",logs)},[logs]);useEffect(()=>{LS.set("ft-wdone",wDone)},[wDone]);useEffect(()=>{LS.set("ft-meals",meals)},[meals]);useEffect(()=>{LS.set("ft-notes",notes)},[notes]);useEffect(()=>{LS.set("ft-bw",bodyW)},[bodyW]);useEffect(()=>{LS.set("ft-sleep",sleepD)},[sleepD]);useEffect(()=>{LS.set("ft-sprints",sprints)},[sprints]);useEffect(()=>{LS.set("ft-theme",light?"light":"dark")},[light]);
