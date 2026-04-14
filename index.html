@@ -208,11 +208,30 @@ const touchRef=useRef({x:0,y:0});
 useEffect(()=>{document.documentElement.style.background=T.bg;document.body.style.background=T.bg},[T.bg]);
 useEffect(()=>{LS.set("ft-logs",logs)},[logs]);useEffect(()=>{LS.set("ft-wdone",wDone)},[wDone]);useEffect(()=>{LS.set("ft-meals",meals)},[meals]);useEffect(()=>{LS.set("ft-notes",notes)},[notes]);useEffect(()=>{LS.set("ft-bw",bodyW)},[bodyW]);useEffect(()=>{LS.set("ft-sleep",sleepD)},[sleepD]);useEffect(()=>{LS.set("ft-sprints",sprints)},[sprints]);useEffect(()=>{LS.set("ft-photos",photos)},[photos]);useEffect(()=>{LS.set("ft-swaps",swaps)},[swaps]);useEffect(()=>{LS.set("ft-theme",light?"light":"dark")},[light]);
 
-const getLL=useCallback((day,ei,si)=>{for(let w=week-1;w>=1;w--){const v=logs[sk(w,day,ei,si)];if(v&&v.kg)return v}return null},[week,logs]);
+// Find exercise index by name in a specific week/day
+const findExIdx=(w,day,name)=>{const p=gp(w),ses=PROGRAM[p].sessions[day];if(!ses)return-1;return ses.exercises.findIndex(e=>e.name===name)};
+
+// Get last log matching by exercise NAME (not position)
+const getLL=useCallback((day,ei,si)=>{
+  const curPhase=gp(week);const ses=PROGRAM[curPhase].sessions[day];if(!ses||!ses.exercises[ei])return null;
+  const exName=ses.exercises[ei].name;
+  for(let w=week-1;w>=1;w--){
+    const p=gp(w),s2=PROGRAM[p].sessions[day];if(!s2)continue;
+    const matchIdx=s2.exercises.findIndex(e=>e.name===exName);
+    if(matchIdx>=0){const v=logs[sk(w,day,matchIdx,si)];if(v&&v.kg)return v}
+  }return null;
+},[week,logs]);
 const getPR=useCallback((exN)=>{let best=0;for(let w=1;w<=16;w++)for(const d of DAYS){const p=gp(w),ses=PROGRAM[p].sessions[d];if(!ses)continue;const idx=ses.exercises.findIndex(e=>e.name.toLowerCase().includes(exN.toLowerCase()));if(idx>=0){for(let s=0;s<ses.exercises[idx].sets;s++){const l=logs[sk(w,d,idx,s)];if(l&&l.kg&&parseFloat(l.kg)>best)best=parseFloat(l.kg)}break}}return best},[logs]);
 
 // Deload weight calc
-const getDeloadWeight=(day,ei)=>{if(!DELOAD.includes(week))return null;for(let w=week-1;w>=1;w--){if(DELOAD.includes(w))continue;const v=logs[sk(w,day,ei,0)];if(v&&v.kg)return Math.round(parseFloat(v.kg)*0.6/2.5)*2.5}return null};
+const getDeloadWeight=(day,ei)=>{if(!DELOAD.includes(week))return null;
+  const ses=PROGRAM[gp(week)].sessions[day];if(!ses||!ses.exercises[ei])return null;
+  const exName=ses.exercises[ei].name;
+  for(let w=week-1;w>=1;w--){if(DELOAD.includes(w))continue;
+    const p=gp(w),s2=PROGRAM[p].sessions[day];if(!s2)continue;
+    const matchIdx=s2.exercises.findIndex(e=>e.name===exName);
+    if(matchIdx>=0){const v=logs[sk(w,day,matchIdx,0)];if(v&&v.kg)return Math.round(parseFloat(v.kg)*0.6/2.5)*2.5}
+  }return null};
 
 // Get active exercise name (accounting for swaps)
 const getExName=(day,ei,originalName)=>{const k=`${week}-${day}-${ei}`;return swaps[k]||originalName};
@@ -220,9 +239,39 @@ const swapEx=(day,ei,newName)=>{const k=`${week}-${day}-${ei}`;setSwaps(p=>({...
 
 const uField=(day,ei,si,f,v)=>{setLogs(p=>({...p,[sk(week,day,ei,si)]:{...(p[sk(week,day,ei,si)]||{}),[f]:v}}))};
 const valSet=(day,ei,si,rest,exN)=>{const k=sk(week,day,ei,si);const cur=parseFloat((logs[k]||{}).kg)||0;const curReps=(logs[k]||{}).reps||"";const prev=getPR(exN);
-// Auto-fill future weeks with same charges (deload at 60%)
+// Smart progressive overload for future weeks
+// Compound (rest>=90s): +2.5kg/week | Isolation (rest<90s): +1kg/2 weeks
+// Deload weeks: 60% | Phase 3 (sem 13+): maintain last phase 2 weight
+const isCompound=rest>=90;
+const increment=isCompound?2.5:0.5;
+const phaseEnd=week<=6?6:week<=12?12:16;
+
 setLogs(p=>{const n={...p,[k]:{...(p[k]||{}),done:true}};
-if(cur>0&&curReps){for(let fw=week+1;fw<=16;fw++){const fk=sk(fw,day,ei,si);if(!n[fk]||(!n[fk].kg&&!n[fk].done)){const isDlW=DELOAD.includes(fw);const dlKg=isDlW?Math.round(cur*0.6/2.5)*2.5:cur;n[fk]={...(n[fk]||{}),kg:String(dlKg),reps:curReps}}}}
+if(cur>0&&curReps){
+  // Get current exercise name
+  const curSes=PROGRAM[gp(week)].sessions[day];
+  const curExName=curSes?curSes.exercises[ei]?.name:null;
+  if(curExName){
+    for(let fw=week+1;fw<=phaseEnd;fw++){
+      // Find same exercise by NAME in target week
+      const fwPhase=gp(fw),fwSes=PROGRAM[fwPhase].sessions[day];
+      if(!fwSes)continue;
+      const matchIdx=fwSes.exercises.findIndex(e=>e.name===curExName);
+      if(matchIdx<0)continue; // Exercise doesn't exist in that week/day
+      const fk=sk(fw,day,matchIdx,si);
+      if(n[fk]&&n[fk].done)continue;
+      const isDlW=DELOAD.includes(fw);
+      const weeksAhead=fw-week;
+      const isP3=fw>=13;
+      let targetKg;
+      if(isDlW){targetKg=Math.round(cur*0.6/2.5)*2.5}
+      else if(isP3&&week<13){targetKg=cur}
+      else if(isP3){targetKg=cur}
+      else{const added=isCompound?weeksAhead*2.5:Math.floor(weeksAhead/2)*1;targetKg=Math.round((cur+added)/2.5)*2.5}
+      n[fk]={...(n[fk]||{}),kg:String(targetKg),reps:curReps};
+    }
+  }
+}
 return n});
 if(cur>prev&&cur>0)setTimeout(()=>setPrB({exercise:exN,weight:cur}),300);if(rest>0)setTimer(rest);
 const ses=PROGRAM[phase].sessions[day];if(ses){let nextEx=null;for(let e=ei;e<ses.exercises.length;e++){const startS=e===ei?si+1:0;for(let s=startS;s<ses.exercises[e].sets;s++){const nk=sk(week,day,e,s);if(!logs[nk]||!logs[nk].done){nextEx=e;break}}if(nextEx!==null)break}if(nextEx!==null&&nextEx!==ei){setTimeout(()=>{setOpenEx(nextEx);setTimeout(()=>{const el=exRefs.current[nextEx];if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},100)},rest>0?500:100)}}};
@@ -352,7 +401,15 @@ h("div",{style:{display:"flex",gap:4,marginBottom:8}},
   h("button",{onClick:(e)=>{e.stopPropagation();setShowSwap({day:selDay,ei,name:exName})},style:{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.card2,color:T.text3,fontSize:9,cursor:"pointer"}},"🔄 Remplacer"),
   ex.rest>=90&&h("button",{onClick:(e)=>{e.stopPropagation();const w=firstSetW&&parseFloat(firstSetW)>20?firstSetW:prompt("Charge de travail prévue (kg) ?");if(w&&parseFloat(w)>20)setShowWarmup(w)},style:{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.card2,color:T.text3,fontSize:9,cursor:"pointer"}},"🔥 Échauffement")
 ),
-(()=>{const last=getLL(selDay,ei,0);return last?h("div",{style:{fontSize:9,color:T.text4,marginBottom:8,padding:"4px 7px",background:T.input,borderRadius:5}},`Préc: ${last.kg}kg × ${last.reps}reps`):null})(),
+(()=>{const last=getLL(selDay,ei,0);
+const autoFilled=logs[sk(week,selDay,ei,0)];
+const hasAutoKg=autoFilled&&autoFilled.kg&&!autoFilled.done;
+const isComp=ex.rest>=90;
+return h(React.Fragment,null,
+last&&h("div",{style:{fontSize:9,color:T.text4,marginBottom:4,padding:"4px 7px",background:T.input,borderRadius:5}},`Préc: ${last.kg}kg × ${last.reps}reps`),
+hasAutoKg&&!isDL&&h("div",{style:{fontSize:9,color:"#22c55e",marginBottom:8,padding:"4px 7px",background:isDL?"#f59e0b10":"#22c55e10",borderRadius:5}},`📈 Objectif: ${autoFilled.kg}kg (${isComp?"+2.5kg/sem":"+1kg/2sem"})`),
+hasAutoKg&&isDL&&h("div",{style:{fontSize:9,color:"#f59e0b",marginBottom:8,padding:"4px 7px",background:"#f59e0b10",borderRadius:5}},`⚡ Deload: ${autoFilled.kg}kg (60%)`)
+)})(),
 Array.from({length:ex.sets}).map((_,si)=>{const k=sk(week,selDay,ei,si),log=logs[k]||{},last=getLL(selDay,ei,si),iD=log.done;const placeholder=isDL&&dlW?String(dlW):(last&&last.kg||"kg");return h("div",{key:si,style:{display:"flex",alignItems:"center",gap:6,marginBottom:5}},h("div",{style:{width:24,fontSize:10,fontWeight:700,color:iD?pc:T.text4}},`S${si+1}`),h("input",{type:"number",inputMode:"decimal",placeholder,value:log.kg||"",onChange:e=>uField(selDay,ei,si,"kg",e.target.value),disabled:iD,style:{width:55,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"kg"),h("input",{type:"number",inputMode:"numeric",placeholder:last&&last.reps||"reps",value:log.reps||"",onChange:e=>uField(selDay,ei,si,"reps",e.target.value),disabled:iD,style:{width:45,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"r"),!iD?h("button",{onClick:()=>valSet(selDay,ei,si,ex.rest,exName),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"✓"):h("button",{onClick:()=>undoSet(selDay,ei,si),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:`${pc}20`,color:pc,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"↩"))}),
 ex.rest>0&&h("button",{onClick:()=>setTimer(ex.rest),style:{marginTop:6,padding:"6px 12px",borderRadius:7,border:`1px solid ${pc}30`,background:"transparent",color:pc,fontSize:10,fontWeight:600,cursor:"pointer",width:"100%"}},`⏱ ${fmt(ex.rest)}`)))}),
 // Sprint
