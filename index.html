@@ -116,7 +116,61 @@ function e1rm(kg,reps){const r=parseInt(reps)||0;return r>0&&kg>0?Math.round(kg*
 
 function MiniChart({data,color,width=280,height=120,id="c"}){if(!data.length)return null;const mx=Math.max(...data.map(d=>d.v)),mn=Math.min(...data.map(d=>d.v)),rng=mx-mn||1,pd=15,gw2=width-pd*2,gh=height-pd*3;const pts=data.map((d,i)=>({x:pd+i*(gw2/Math.max(data.length-1,1)),y:pd+gh-(((d.v-mn)/rng)*gh),...d}));const line=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");const area=line+` L${pts[pts.length-1].x},${height-pd} L${pts[0].x},${height-pd} Z`;return h("svg",{width,height,style:{display:"block",margin:"0 auto"}},h("defs",null,h("linearGradient",{id:"g"+id,x1:0,y1:0,x2:0,y2:1},h("stop",{offset:"0%",stopColor:color,stopOpacity:0.3}),h("stop",{offset:"100%",stopColor:color,stopOpacity:0}))),h("path",{d:area,fill:`url(#g${id})`}),h("path",{d:line,fill:"none",stroke:color,strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"}),pts.map((p,i)=>h("g",{key:i},h("circle",{cx:p.x,cy:p.y,r:3,fill:color}),h("text",{x:p.x,y:height-2,textAnchor:"middle",fill:"currentColor",fontSize:8,opacity:0.4},p.label||`S${p.w}`),h("text",{x:p.x,y:p.y-8,textAnchor:"middle",fill:"currentColor",fontSize:8,opacity:0.6},p.v))))}
 
-function RestTimer({duration,color,onDone,T}){const[rem,setRem]=useState(duration);const[on,setOn]=useState(true);const ref=useRef(null);const ac=useRef(null);const beep=useCallback(()=>{try{if(!ac.current)ac.current=new(window.AudioContext||window.webkitAudioContext)();const c=ac.current,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=0.3;o.start();o.stop(c.currentTime+0.2);setTimeout(()=>{const o2=c.createOscillator(),g2=c.createGain();o2.connect(g2);g2.connect(c.destination);o2.frequency.value=1100;g2.gain.value=0.3;o2.start();o2.stop(c.currentTime+0.3)},250)}catch(e){}},[]);useEffect(()=>{if(on&&rem>0)ref.current=setInterval(()=>setRem(r=>r-1),1000);return()=>clearInterval(ref.current)},[on,rem]);useEffect(()=>{if(rem<=0&&on){beep();setOn(false)}},[rem,on,beep]);const ci=2*Math.PI*58,pct=duration>0?(duration-rem)/duration:1,dn=rem<=0;return h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",color:T.text}},h("div",{style:{fontSize:11,letterSpacing:4,color:T.text4,marginBottom:24}},"REPOS"),h("div",{style:{position:"relative",width:170,height:170,marginBottom:28}},h("svg",{width:170,height:170,style:{transform:"rotate(-90deg)"}},h("circle",{cx:85,cy:85,r:58,fill:"none",stroke:T.border,strokeWidth:10}),h("circle",{cx:85,cy:85,r:58,fill:"none",stroke:dn?"#22c55e":color,strokeWidth:10,strokeLinecap:"round",strokeDasharray:ci,strokeDashoffset:ci*(1-pct),style:{transition:"stroke-dashoffset 1s linear"}})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}},h("div",{style:{fontSize:dn?32:48,fontWeight:800,fontVariantNumeric:"tabular-nums",color:dn?"#22c55e":T.text}},dn?"GO !":fmt(rem)))),h("div",{style:{display:"flex",gap:10}},!dn&&h("button",{onClick:()=>setOn(r=>!r),style:{padding:"12px 24px",borderRadius:12,border:"none",cursor:"pointer",background:T.card2,color:T.text,fontSize:13,fontWeight:700}},on?"⏸":"▶"),!dn&&h("button",{onClick:()=>setRem(r=>r+15),style:{padding:"12px 18px",borderRadius:12,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13}},"+15s"),h("button",{onClick:onDone,style:{padding:"12px 28px",borderRadius:12,border:"none",cursor:"pointer",background:dn?"#22c55e":color,color:"#fff",fontSize:14,fontWeight:700}},dn?"Suivant →":"Passer →")))}
+// Request notification permission on load
+if("Notification"in window&&Notification.permission==="default"){Notification.requestPermission()}
+
+function RestTimer({duration,color,onDone,T}){
+const endTimeRef=useRef(Date.now()+duration*1000);
+const[rem,setRem]=useState(duration);
+const[on,setOn]=useState(true);
+const[paused,setPaused]=useState(false);
+const pausedRemRef=useRef(duration);
+const ref=useRef(null);
+const ac=useRef(null);
+const notified=useRef(false);
+
+const beep=useCallback(()=>{try{if(!ac.current)ac.current=new(window.AudioContext||window.webkitAudioContext)();const c=ac.current,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=0.3;o.start();o.stop(c.currentTime+0.2);setTimeout(()=>{const o2=c.createOscillator(),g2=c.createGain();o2.connect(g2);g2.connect(c.destination);o2.frequency.value=1100;g2.gain.value=0.3;o2.start();o2.stop(c.currentTime+0.3)},250)}catch(e){}},[]);
+
+const notify=useCallback(()=>{
+  if(notified.current)return;notified.current=true;
+  beep();
+  if("Notification"in window&&Notification.permission==="granted"){
+    try{new Notification("⏱ Repos terminé !",{body:"C'est parti pour la série suivante",icon:"⚡",tag:"rest-timer",requireInteraction:true})}catch(e){}
+  }
+},[beep]);
+
+// Use Date.now() so it works even in background
+useEffect(()=>{
+  if(!on)return;
+  ref.current=setInterval(()=>{
+    const now=Date.now();
+    const left=Math.max(0,Math.ceil((endTimeRef.current-now)/1000));
+    setRem(left);
+    if(left<=0){notify();setOn(false)}
+  },200); // Check every 200ms for accuracy
+  return()=>clearInterval(ref.current);
+},[on,notify]);
+
+const togglePause=()=>{
+  if(paused){
+    // Resume: set new end time based on remaining
+    endTimeRef.current=Date.now()+pausedRemRef.current*1000;
+    setOn(true);setPaused(false);
+  } else {
+    // Pause: save remaining
+    pausedRemRef.current=rem;
+    setOn(false);setPaused(true);
+  }
+};
+
+const add15=()=>{
+  endTimeRef.current+=15000;
+  if(!paused)pausedRemRef.current+=15;
+  setRem(r=>r+15);
+};
+
+const ci=2*Math.PI*58,pct=duration>0?(duration-rem)/duration:1,dn=rem<=0;
+return h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",color:T.text}},h("div",{style:{fontSize:11,letterSpacing:4,color:T.text4,marginBottom:24}},"REPOS"),h("div",{style:{position:"relative",width:170,height:170,marginBottom:28}},h("svg",{width:170,height:170,style:{transform:"rotate(-90deg)"}},h("circle",{cx:85,cy:85,r:58,fill:"none",stroke:T.border,strokeWidth:10}),h("circle",{cx:85,cy:85,r:58,fill:"none",stroke:dn?"#22c55e":color,strokeWidth:10,strokeLinecap:"round",strokeDasharray:ci,strokeDashoffset:ci*(1-pct),style:{transition:"stroke-dashoffset 0.3s linear"}})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}},h("div",{style:{fontSize:dn?32:48,fontWeight:800,fontVariantNumeric:"tabular-nums",color:dn?"#22c55e":T.text}},dn?"GO !":fmt(rem)))),h("div",{style:{display:"flex",gap:10}},!dn&&h("button",{onClick:togglePause,style:{padding:"12px 24px",borderRadius:12,border:"none",cursor:"pointer",background:T.card2,color:T.text,fontSize:13,fontWeight:700}},paused?"▶":"⏸"),!dn&&h("button",{onClick:add15,style:{padding:"12px 18px",borderRadius:12,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13}},"+15s"),h("button",{onClick:onDone,style:{padding:"12px 28px",borderRadius:12,border:"none",cursor:"pointer",background:dn?"#22c55e":color,color:"#fff",fontSize:14,fontWeight:700}},dn?"Suivant →":"Passer →")))}
 
 function SessTimer({color,T}){const[el,setEl]=useState(0);const[on,setOn]=useState(false);const ref=useRef(null);useEffect(()=>{if(on)ref.current=setInterval(()=>setEl(e=>e+1),1000);return()=>clearInterval(ref.current)},[on]);return h("div",{style:{display:"flex",alignItems:"center",gap:8,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 12px",marginBottom:10}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1,flex:1}},"⏱ DURÉE"),h("div",{style:{fontSize:18,fontWeight:800,fontVariantNumeric:"tabular-nums",color:on?color:T.text4}},fmt(el)),h("button",{onClick:()=>setOn(r=>!r),style:{padding:"4px 10px",borderRadius:6,border:"none",cursor:"pointer",background:T.card2,color:on?color:T.text3,fontSize:10,fontWeight:700}},on?"⏸":"▶"),el>0&&h("button",{onClick:()=>{setEl(0);setOn(false)},style:{padding:"4px 8px",borderRadius:6,border:"none",cursor:"pointer",background:T.card2,color:T.text4,fontSize:10}},"↺"))}
 
@@ -126,7 +180,7 @@ function ExHist({exName,logs,color,onClose,T}){const data=[];for(let w=1;w<=16;w
 return h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",padding:20,color:T.text}},h("div",{className:"fade-in",style:{background:T.card2,border:`1px solid ${T.border}`,borderRadius:16,padding:20,width:"100%",maxWidth:360}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},h("div",{style:{fontSize:14,fontWeight:800,color}},exName),h("button",{onClick:onClose,style:{background:"none",border:"none",color:T.text4,fontSize:18,cursor:"pointer"}},"✕")),data.length>0?h(React.Fragment,null,h("div",{style:{display:"flex",justifyContent:"space-around",marginBottom:16}},h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"RECORD"),h("div",{style:{fontSize:20,fontWeight:800,color:"#f59e0b"}},`${mx}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"1RM EST."),h("div",{style:{fontSize:20,fontWeight:800,color:"#22c55e"}},`${best1rm}kg`)),h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:8,color:T.text4,letterSpacing:1}},"DERNIER"),h("div",{style:{fontSize:20,fontWeight:800,color}},`${data[data.length-1].v}kg`))),h(MiniChart,{data,color,width:300,height:140,id:exName.slice(0,3)}),h("div",{style:{marginTop:16,maxHeight:140,overflowY:"auto"}},data.map((d,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}},h("span",{style:{color:T.text3}},`Sem ${d.w}`),h("span",null,h("span",{style:{color:T.text2,fontWeight:700}},`${d.v}kg × ${d.reps}`),h("span",{style:{color:T.text4,marginLeft:6,fontSize:9}},`1RM≈${e1rm(d.v,d.reps)}kg`)))))):h("div",{style:{textAlign:"center",color:T.text4,padding:20,fontSize:12}},"Aucune donnée")))}
 
 // ── PIN Lock ──
-const APP_PIN_HASH="fc169e55e83ef1cd498da18ca232024b12c0e7acd0b5834b977bda30b1bfa9c5";
+const APP_PIN_HASH="09550794019a7c2092e5872e26a4cd2155868b8c427adb53734c8a9d4ea343d7";
 async function hashPin(pin){const data=new TextEncoder().encode(pin);const buf=await crypto.subtle.digest("SHA-256",data);return[...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 
 function PinLock({onUnlock}){const[pin,setPin]=useState("");const[error,setError]=useState(false);const[shake,setShake]=useState(false);
@@ -165,7 +219,12 @@ const getExName=(day,ei,originalName)=>{const k=`${week}-${day}-${ei}`;return sw
 const swapEx=(day,ei,newName)=>{const k=`${week}-${day}-${ei}`;setSwaps(p=>({...p,[k]:newName}));setShowSwap(null)};
 
 const uField=(day,ei,si,f,v)=>{setLogs(p=>({...p,[sk(week,day,ei,si)]:{...(p[sk(week,day,ei,si)]||{}),[f]:v}}))};
-const valSet=(day,ei,si,rest,exN)=>{const k=sk(week,day,ei,si);const cur=parseFloat((logs[k]||{}).kg)||0;const prev=getPR(exN);setLogs(p=>({...p,[k]:{...(p[k]||{}),done:true}}));if(cur>prev&&cur>0)setTimeout(()=>setPrB({exercise:exN,weight:cur}),300);if(rest>0)setTimer(rest);
+const valSet=(day,ei,si,rest,exN)=>{const k=sk(week,day,ei,si);const cur=parseFloat((logs[k]||{}).kg)||0;const curReps=(logs[k]||{}).reps||"";const prev=getPR(exN);
+// Auto-fill future weeks with same charges (deload at 60%)
+setLogs(p=>{const n={...p,[k]:{...(p[k]||{}),done:true}};
+if(cur>0&&curReps){for(let fw=week+1;fw<=16;fw++){const fk=sk(fw,day,ei,si);if(!n[fk]||(!n[fk].kg&&!n[fk].done)){const isDlW=DELOAD.includes(fw);const dlKg=isDlW?Math.round(cur*0.6/2.5)*2.5:cur;n[fk]={...(n[fk]||{}),kg:String(dlKg),reps:curReps}}}}
+return n});
+if(cur>prev&&cur>0)setTimeout(()=>setPrB({exercise:exN,weight:cur}),300);if(rest>0)setTimer(rest);
 const ses=PROGRAM[phase].sessions[day];if(ses){let nextEx=null;for(let e=ei;e<ses.exercises.length;e++){const startS=e===ei?si+1:0;for(let s=startS;s<ses.exercises[e].sets;s++){const nk=sk(week,day,e,s);if(!logs[nk]||!logs[nk].done){nextEx=e;break}}if(nextEx!==null)break}if(nextEx!==null&&nextEx!==ei){setTimeout(()=>{setOpenEx(nextEx);setTimeout(()=>{const el=exRefs.current[nextEx];if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},100)},rest>0?500:100)}}};
 const undoSet=(day,ei,si)=>{setLogs(p=>{const e={...(p[sk(week,day,ei,si)]||{})};delete e.done;return{...p,[sk(week,day,ei,si)]:e}})};
 const togDay=(day)=>{setWDone(p=>({...p,[`${week}-${day}`]:!p[`${week}-${day}`]}))};
@@ -353,6 +412,7 @@ view==="settings"&&h(React.Fragment,null,
 h("div",{style:{fontSize:14,fontWeight:800,color:pc,marginBottom:16}},"Paramètres"),
 h("button",{onClick:()=>{LS.del("ft-unlocked");setLocked(true)},style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},"🔒 Verrouiller"),
 h("div",{style:{fontSize:9,color:T.text5,textAlign:"center",marginBottom:12}},"PIN chiffré SHA-256"),
+h("button",{onClick:()=>{if("Notification"in window){Notification.requestPermission().then(p=>{alert(p==="granted"?"Notifications activées ✓":"Notifications refusées. Active-les dans les réglages de ton navigateur.")})}else{alert("Notifications non supportées sur ce navigateur")}},style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},("Notification"in window&&Notification.permission==="granted")?"🔔 Notifications activées ✓":"🔔 Activer les notifications"),
 h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px",marginBottom:8}},h("div",{style:{fontSize:12,fontWeight:600,color:T.text2}},"Thème"),h("button",{onClick:()=>setLight(l=>!l),style:{padding:"6px 16px",borderRadius:8,border:"none",cursor:"pointer",background:light?"#1a1a2e":"#f5f5f0",color:light?"#fff":"#1a1a1a",fontSize:11,fontWeight:700}},light?"🌙 Sombre":"☀️ Clair")),
 h("button",{onClick:exportD,style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${light?"#16a34a33":"#1a2e1a"}`,background:light?"#f0fdf4":"#0f1a0f",color:light?"#166534":"#4a4",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},"📥 Exporter"),
 h("label",{style:{display:"block",width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8,textAlign:"center"}},"📤 Importer",h("input",{type:"file",accept:".json",onChange:importD,style:{display:"none"}})),
