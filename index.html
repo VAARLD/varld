@@ -277,7 +277,77 @@ if(cur>prev&&cur>0)setTimeout(()=>setPrB({exercise:exN,weight:cur}),300);if(rest
 const ses=PROGRAM[phase].sessions[day];if(ses){let nextEx=null;for(let e=ei;e<ses.exercises.length;e++){const startS=e===ei?si+1:0;for(let s=startS;s<ses.exercises[e].sets;s++){const nk=sk(week,day,e,s);if(!logs[nk]||!logs[nk].done){nextEx=e;break}}if(nextEx!==null)break}if(nextEx!==null&&nextEx!==ei){setTimeout(()=>{setOpenEx(nextEx);setTimeout(()=>{const el=exRefs.current[nextEx];if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},100)},rest>0?500:100)}}};
 const undoSet=(day,ei,si)=>{setLogs(p=>{const e={...(p[sk(week,day,ei,si)]||{})};delete e.done;return{...p,[sk(week,day,ei,si)]:e}})};
 const togDay=(day)=>{setWDone(p=>({...p,[`${week}-${day}`]:!p[`${week}-${day}`]}))};
-const togMeal=(id)=>{const td=new Date().toISOString().slice(0,10);setMeals(p=>({...p,[`${td}-${id}`]:!p[`${td}-${id}`]}))};
+
+// Generate full progression from current week's data
+const generateProgression=()=>{
+  const curPhase=gp(week);
+  const phaseEnd=week<=6?6:week<=12?12:16;
+  let count=0;
+  setLogs(p=>{
+    const n={...p};
+    DAYS.forEach(day=>{
+      const ses=PROGRAM[curPhase].sessions[day];if(!ses)return;
+      ses.exercises.forEach((ex,ei)=>{
+        const isComp=ex.rest>=90;
+        for(let si=0;si<ex.sets;si++){
+          const k=sk(week,day,ei,si);
+          const log=n[k];
+          if(!log||!log.kg)continue;
+          const baseKg=parseFloat(log.kg);
+          const baseReps=log.reps||"";
+          if(!baseKg||!baseReps)continue;
+          for(let fw=week+1;fw<=phaseEnd;fw++){
+            const fwSes=PROGRAM[gp(fw)].sessions[day];if(!fwSes)continue;
+            const matchIdx=fwSes.exercises.findIndex(e=>e.name===ex.name);
+            if(matchIdx<0)continue;
+            const fk=sk(fw,day,matchIdx,si);
+            if(n[fk]&&n[fk].done)continue;
+            const isDlW=DELOAD.includes(fw);
+            const weeksAhead=fw-week;
+            const isP3=fw>=13;
+            let targetKg;
+            if(isDlW){targetKg=Math.round(baseKg*0.6/2.5)*2.5}
+            else if(isP3){targetKg=baseKg}
+            else{
+              const added=isComp?weeksAhead*2.5:Math.floor(weeksAhead/2)*1;
+              targetKg=Math.round((baseKg+added)/2.5)*2.5;
+            }
+            n[fk]={...(n[fk]||{}),kg:String(targetKg),reps:baseReps};
+            count++;
+          }
+        }
+      });
+    });
+    return n;
+  });
+  alert(`Progression calculée ! ${count} séries pré-remplies pour les semaines ${week+1} à ${phaseEnd}.`);
+};
+
+// Get progressive target for display (computed on-the-fly)
+const getProgressiveTarget=(day,ei,si)=>{
+  const curPhase=gp(week);
+  const ses=PROGRAM[curPhase].sessions[day];if(!ses||!ses.exercises[ei])return null;
+  const exName=ses.exercises[ei].name;
+  const isComp=ses.exercises[ei].rest>=90;
+  // Look back for the most recent validated data for this exercise
+  for(let w=week-1;w>=1;w--){
+    const p2=gp(w),s2=PROGRAM[p2].sessions[day];if(!s2)continue;
+    const matchIdx=s2.exercises.findIndex(e=>e.name===exName);
+    if(matchIdx<0)continue;
+    const v=logs[sk(w,day,matchIdx,si)];
+    if(v&&v.kg&&v.done){
+      const baseKg=parseFloat(v.kg);
+      const weeksAhead=week-w;
+      const isDlW=DELOAD.includes(week);
+      const isP3=week>=13;
+      if(isDlW)return Math.round(baseKg*0.6/2.5)*2.5;
+      if(isP3)return baseKg;
+      const added=isComp?weeksAhead*2.5:Math.floor(weeksAhead/2)*1;
+      return Math.round((baseKg+added)/2.5)*2.5;
+    }
+  }
+  return null;
+};const togMeal=(id)=>{const td=new Date().toISOString().slice(0,10);setMeals(p=>({...p,[`${td}-${id}`]:!p[`${td}-${id}`]}))};
 const isMD=(id)=>meals[`${new Date().toISOString().slice(0,10)}-${id}`];
 const getVolume=(day)=>{const ses=PROGRAM[phase].sessions[day];if(!ses)return 0;let vol=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){const l=logs[sk(week,day,ei,s)];if(l&&l.done&&l.kg&&l.reps)vol+=parseFloat(l.kg)*(parseInt(l.reps)||0)}});return Math.round(vol)};
 
@@ -363,6 +433,8 @@ h("div",{style:{display:"flex",gap:2,marginBottom:14}},[{k:"week",l:"📋"},{k:"
 // ═══ WEEK VIEW ═══
 view==="week"&&!selDay&&h(React.Fragment,null,
 h("div",{style:{marginBottom:10}},h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},h("span",{style:{fontSize:10,color:T.text4}},`Semaine ${week}`),h("span",{style:{fontSize:10,color:pc,fontWeight:700}},`${dC}/8`)),h("div",{style:{height:4,background:T.card2,borderRadius:2,overflow:"hidden"}},h("div",{style:{height:"100%",width:`${(dC/8)*100}%`,background:pc,borderRadius:2,transition:"width 0.3s"}}))),
+// Progression button
+dC>0&&h("button",{onClick:generateProgression,style:{width:"100%",padding:"10px",borderRadius:10,border:`1px solid #22c55e30`,background:light?"#f0fdf4":"#0a1a0a",color:"#22c55e",fontSize:11,fontWeight:700,cursor:"pointer",marginBottom:10}},"📈 Calculer la progression automatique →"),
 DAYS.map(day=>{const ses=cp.sessions[day],done=wDone[`${week}-${day}`];let tot=0,dn2=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){tot++;if(logs[sk(week,day,ei,s)]&&logs[sk(week,day,ei,s)].done)dn2++}});const pct=tot>0?Math.round((dn2/tot)*100):0;const vol=getVolume(day);const isToday=day===todayDayMapped;
 return h("div",{key:day,onClick:()=>{setSelDay(day);setOpenEx(null)},style:{background:done?`${pc}${light?"15":"08"}`:isToday?`${pc}05`:T.card,border:`1px solid ${done?pc+"30":isToday?pc+"15":T.border}`,borderRadius:11,padding:"11px 13px",marginBottom:5,cursor:"pointer"}},
 h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",{style:{display:"flex",alignItems:"center",gap:9}},h("div",{style:{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:done?pc:isToday?`${pc}20`:T.card2,color:done?"#fff":isToday?pc:T.text4,fontSize:10,fontWeight:800}},done?"✓":DL[day]),h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:done?pc:T.text2}},ses.title),h("div",{style:{fontSize:9,color:T.text4,marginTop:1}},ses.time," · ",ses.exercises.length," exos",vol>0?` · ${vol}kg`:""))),h("div",{style:{display:"flex",alignItems:"center",gap:6}},pct>0&&!done&&h("div",{style:{width:28,height:28,position:"relative"}},h("svg",{width:28,height:28,style:{transform:"rotate(-90deg)"}},h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:T.border,strokeWidth:3}),h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:pc,strokeWidth:3,strokeLinecap:"round",strokeDasharray:2*Math.PI*11,strokeDashoffset:2*Math.PI*11*(1-pct/100)})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:800,color:pc}},pct)),h("div",{style:{color:T.border,fontSize:13}},"›"))),
@@ -404,13 +476,16 @@ h("div",{style:{display:"flex",gap:4,marginBottom:8}},
 (()=>{const last=getLL(selDay,ei,0);
 const autoFilled=logs[sk(week,selDay,ei,0)];
 const hasAutoKg=autoFilled&&autoFilled.kg&&!autoFilled.done;
+const progTarget=getProgressiveTarget(selDay,ei,0);
 const isComp=ex.rest>=90;
+const showTarget=hasAutoKg?parseFloat(autoFilled.kg):progTarget;
 return h(React.Fragment,null,
 last&&h("div",{style:{fontSize:9,color:T.text4,marginBottom:4,padding:"4px 7px",background:T.input,borderRadius:5}},`Préc: ${last.kg}kg × ${last.reps}reps`),
-hasAutoKg&&!isDL&&h("div",{style:{fontSize:9,color:"#22c55e",marginBottom:8,padding:"4px 7px",background:isDL?"#f59e0b10":"#22c55e10",borderRadius:5}},`📈 Objectif: ${autoFilled.kg}kg (${isComp?"+2.5kg/sem":"+1kg/2sem"})`),
-hasAutoKg&&isDL&&h("div",{style:{fontSize:9,color:"#f59e0b",marginBottom:8,padding:"4px 7px",background:"#f59e0b10",borderRadius:5}},`⚡ Deload: ${autoFilled.kg}kg (60%)`)
+showTarget&&!isDL&&h("div",{style:{fontSize:9,color:"#22c55e",marginBottom:8,padding:"4px 7px",background:"#22c55e10",borderRadius:5}},`📈 Objectif: ${showTarget}kg (${isComp?"+2.5kg/sem":"+1kg/2sem"})`),
+showTarget&&isDL&&h("div",{style:{fontSize:9,color:"#f59e0b",marginBottom:8,padding:"4px 7px",background:"#f59e0b10",borderRadius:5}},`⚡ Deload: ${showTarget}kg (60%)`),
+!showTarget&&!last&&h("div",{style:{fontSize:9,color:T.text4,marginBottom:8,padding:"4px 7px",background:T.input,borderRadius:5}},"Première séance — entre tes charges pour générer la progression")
 )})(),
-Array.from({length:ex.sets}).map((_,si)=>{const k=sk(week,selDay,ei,si),log=logs[k]||{},last=getLL(selDay,ei,si),iD=log.done;const placeholder=isDL&&dlW?String(dlW):(last&&last.kg||"kg");return h("div",{key:si,style:{display:"flex",alignItems:"center",gap:6,marginBottom:5}},h("div",{style:{width:24,fontSize:10,fontWeight:700,color:iD?pc:T.text4}},`S${si+1}`),h("input",{type:"number",inputMode:"decimal",placeholder,value:log.kg||"",onChange:e=>uField(selDay,ei,si,"kg",e.target.value),disabled:iD,style:{width:55,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"kg"),h("input",{type:"number",inputMode:"numeric",placeholder:last&&last.reps||"reps",value:log.reps||"",onChange:e=>uField(selDay,ei,si,"reps",e.target.value),disabled:iD,style:{width:45,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"r"),!iD?h("button",{onClick:()=>valSet(selDay,ei,si,ex.rest,exName),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"✓"):h("button",{onClick:()=>undoSet(selDay,ei,si),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:`${pc}20`,color:pc,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"↩"))}),
+Array.from({length:ex.sets}).map((_,si)=>{const k=sk(week,selDay,ei,si),log=logs[k]||{},last=getLL(selDay,ei,si),iD=log.done;const progTarget=getProgressiveTarget(selDay,ei,si);const placeholder=isDL&&dlW?String(dlW):progTarget?String(progTarget):(last&&last.kg||"kg");return h("div",{key:si,style:{display:"flex",alignItems:"center",gap:6,marginBottom:5}},h("div",{style:{width:24,fontSize:10,fontWeight:700,color:iD?pc:T.text4}},`S${si+1}`),h("input",{type:"number",inputMode:"decimal",placeholder,value:log.kg||"",onChange:e=>uField(selDay,ei,si,"kg",e.target.value),disabled:iD,style:{width:55,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"kg"),h("input",{type:"number",inputMode:"numeric",placeholder:last&&last.reps||"reps",value:log.reps||"",onChange:e=>uField(selDay,ei,si,"reps",e.target.value),disabled:iD,style:{width:45,padding:"6px 7px",borderRadius:7,border:`1px solid ${iD?pc+"30":T.border}`,background:iD?`${pc}${light?"15":"08"}`:T.input,color:iD?pc:T.text,fontSize:12,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:9,color:T.text4}},"r"),!iD?h("button",{onClick:()=>valSet(selDay,ei,si,ex.rest,exName),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:T.card2,color:T.text3,fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"✓"):h("button",{onClick:()=>undoSet(selDay,ei,si),style:{width:32,height:32,borderRadius:7,border:"none",cursor:"pointer",background:`${pc}20`,color:pc,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},"↩"))}),
 ex.rest>0&&h("button",{onClick:()=>setTimer(ex.rest),style:{marginTop:6,padding:"6px 12px",borderRadius:7,border:`1px solid ${pc}30`,background:"transparent",color:pc,fontSize:10,fontWeight:600,cursor:"pointer",width:"100%"}},`⏱ ${fmt(ex.rest)}`)))}),
 // Sprint
 (selDay==="mercredi"||selDay==="lundi"||selDay==="vendredi")&&ses.exercises.some(e=>e.name.toLowerCase().includes("sprint"))&&h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginTop:8,marginBottom:8}},h("div",{style:{fontSize:9,color:T.text4,letterSpacing:1,marginBottom:6}},"⚡ TEMPS SPRINT 20M"),h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("input",{type:"number",inputMode:"decimal",placeholder:"sec",value:sprints[`${week}-w${week}`]||"",onChange:e=>setSprints(p=>({...p,[`${week}-w${week}`]:e.target.value})),style:{width:70,padding:"6px 8px",borderRadius:7,border:`1px solid ${T.border}`,background:T.input,color:T.text,fontSize:13,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:10,color:T.text4}},"sec"))),
