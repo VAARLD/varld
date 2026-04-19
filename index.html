@@ -125,6 +125,13 @@ const DL={lundi:"LUN",mardi:"MAR",mercredi:"MER",jeudi:"JEU",vendredi:"VEN",dima
 const DF={lundi:"Lundi",mardi:"Mardi",mercredi:"Mercredi",jeudi:"Jeudi",vendredi:"Vendredi",dimanche:"Dimanche"};
 const FOOT={mardi:true,jeudi:true};const DELOAD=[4,8,16];
 const PR_EX=["Back squat","Romanian deadlift","Développé couché","Deadlift","Tractions","Dév. militaire","Hip thrust","Dips","Hang clean"];
+const OFF_REASONS={
+  sick:{emoji:"🤒",label:"Malade",color:"#f59e0b"},
+  injury:{emoji:"🤕",label:"Blessure",color:"#ef4444"},
+  travel:{emoji:"✈️",label:"Voyage",color:"#3b82f6"},
+  rest:{emoji:"😌",label:"Repos",color:"#22c55e"},
+  other:{emoji:"⋯",label:"Autre",color:"#888"}
+};
 function gw(){return Math.max(1,Math.min(16,Math.ceil((new Date()-new Date("2026-04-13"))/(7*864e5))))}
 function gp(w){return w<=6?1:w<=12?2:3}
 function fmt(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`}
@@ -187,7 +194,7 @@ function cancelRestNotif(){
     if(reg.active)reg.active.postMessage({type:'CANCEL_NOTIF',tag:'rest-timer'});
   }).catch(function(){});
 }
-function scheduleReminders(curWeek,curPhase){
+function scheduleReminders(curWeek,curPhase,offDaysMap){
   if(!('serviceWorker'in navigator)||Notification.permission!=='granted')return;
   var SC={lundi:{h:18,m:15},mardi:{h:6,m:0},mercredi:{h:18,m:15},jeudi:{h:6,m:0},vendredi:{h:18,m:15},dimanche:{h:9,m:0}};
   var DN=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
@@ -196,6 +203,12 @@ function scheduleReminders(curWeek,curPhase){
     var d=new Date(now);d.setDate(d.getDate()+di);
     var dn=DN[d.getDay()];var sc=SC[dn];if(!sc)continue;
     var prog=PROGRAM[gp(curWeek)];if(!prog||!prog.sessions||!prog.sessions[dn])continue;
+    // Skip off days - compute week for this date
+    if(offDaysMap){
+      var diffDays=(d-new Date("2026-04-13"))/(24*60*60*1000);
+      var wn=diffDays<=0?1:Math.max(1,Math.min(16,Math.ceil(diffDays/7)));
+      if(offDaysMap[wn+'-'+dn])continue;
+    }
     var title=prog.sessions[dn].title||'S\u00E9ance';
     var isMorning=sc.h<12;
     if(isMorning){
@@ -407,8 +420,8 @@ function App(){
 const[locked,setLocked]=useState(()=>{const u=LS.get("ft-unlocked");return!u||Date.now()-u>7*24*60*60*1000});
 const[splash,setSplash]=useState(true);
 const[phase,setPhase]=useState(()=>gp(gw()));const[week,setWeek]=useState(()=>gw());const[selDay,setSelDay]=useState(null);const[openEx,setOpenEx]=useState(null);
-const[logs,setLogs]=useState(()=>LS.get("ft-logs")||{});const[wDone,setWDone]=useState(()=>LS.get("ft-wdone")||{});const[meals,setMeals]=useState(()=>LS.get("ft-meals")||{});const[notes,setNotes]=useState(()=>LS.get("ft-notes")||{});const[bodyW,setBodyW]=useState(()=>LS.get("ft-bw")||{});const[sleepD,setSleepD]=useState(()=>LS.get("ft-sleep")||{});const[sprints,setSprints]=useState(()=>LS.get("ft-sprints")||{});const[photos,setPhotos]=useState(()=>LS.get("ft-photos")||{});const[swaps,setSwaps]=useState(()=>LS.get("ft-swaps")||{});const[durations,setDurations]=useState(()=>LS.get("ft-dur")||{});const[rpes,setRpes]=useState(()=>LS.get("ft-rpes")||{});const[cardio,setCardio]=useState(()=>LS.get("ft-cardio")||{});
-const[timer,setTimer]=useState(null);const[view,setView]=useState("week");const[prB,setPrB]=useState(null);const[histEx,setHistEx]=useState(null);const[showSwap,setShowSwap]=useState(null);const[showWarmup,setShowWarmup]=useState(null);const[celeb,setCeleb]=useState(null);const[slideDir,setSlideDir]=useState(null);const slideKey=useRef(0);const[focusMode,setFocusMode]=useState(false);
+const[logs,setLogs]=useState(()=>LS.get("ft-logs")||{});const[wDone,setWDone]=useState(()=>LS.get("ft-wdone")||{});const[meals,setMeals]=useState(()=>LS.get("ft-meals")||{});const[notes,setNotes]=useState(()=>LS.get("ft-notes")||{});const[bodyW,setBodyW]=useState(()=>LS.get("ft-bw")||{});const[sleepD,setSleepD]=useState(()=>LS.get("ft-sleep")||{});const[sprints,setSprints]=useState(()=>LS.get("ft-sprints")||{});const[photos,setPhotos]=useState(()=>LS.get("ft-photos")||{});const[swaps,setSwaps]=useState(()=>LS.get("ft-swaps")||{});const[durations,setDurations]=useState(()=>LS.get("ft-dur")||{});const[rpes,setRpes]=useState(()=>LS.get("ft-rpes")||{});const[cardio,setCardio]=useState(()=>LS.get("ft-cardio")||{});const[offDays,setOffDays]=useState(()=>LS.get("ft-offdays")||{});
+const[timer,setTimer]=useState(null);const[view,setView]=useState("week");const[prB,setPrB]=useState(null);const[histEx,setHistEx]=useState(null);const[showSwap,setShowSwap]=useState(null);const[showWarmup,setShowWarmup]=useState(null);const[celeb,setCeleb]=useState(null);const[slideDir,setSlideDir]=useState(null);const slideKey=useRef(0);const[focusMode,setFocusMode]=useState(false);const[offModal,setOffModal]=useState(null);
 const[light,setLight]=useState(()=>LS.get("ft-theme")==="light");
 const[modal,setModal]=useState(null);
 const[toast,setToast]=useState(null);
@@ -425,7 +438,7 @@ useEffect(()=>{document.documentElement.style.background=T.bg;document.body.styl
 // ── IDB Recovery: restore from IndexedDB if localStorage was wiped ──
 const idbRecovered=useRef(false);
 useEffect(()=>{if(idbRecovered.current)return;idbRecovered.current=true;
-  const keys=[{k:"ft-logs",s:setLogs},{k:"ft-wdone",s:setWDone},{k:"ft-meals",s:setMeals},{k:"ft-notes",s:setNotes},{k:"ft-bw",s:setBodyW},{k:"ft-sleep",s:setSleepD},{k:"ft-sprints",s:setSprints},{k:"ft-photos",s:setPhotos},{k:"ft-swaps",s:setSwaps},{k:"ft-dur",s:setDurations},{k:"ft-rpes",s:setRpes},{k:"ft-cardio",s:setCardio}];
+  const keys=[{k:"ft-logs",s:setLogs},{k:"ft-wdone",s:setWDone},{k:"ft-meals",s:setMeals},{k:"ft-notes",s:setNotes},{k:"ft-bw",s:setBodyW},{k:"ft-sleep",s:setSleepD},{k:"ft-sprints",s:setSprints},{k:"ft-photos",s:setPhotos},{k:"ft-swaps",s:setSwaps},{k:"ft-dur",s:setDurations},{k:"ft-rpes",s:setRpes},{k:"ft-cardio",s:setCardio},{k:"ft-offdays",s:setOffDays}];
   var recovered=0;
   keys.forEach(function(item){
     var lsVal=LS.get(item.k);
@@ -439,7 +452,7 @@ useEffect(()=>{if(idbRecovered.current)return;idbRecovered.current=true;
   });
 },[]);
 
-useEffect(()=>{if(!locked&&!splash){setTimeout(function(){scheduleReminders(week,phase)},1500);}},[locked,splash]);
+useEffect(()=>{if(!locked&&!splash){setTimeout(function(){scheduleReminders(week,phase,offDays)},1500);}},[locked,splash]);
 
 // ── Auto-export reminder every 14 days ──
 useEffect(()=>{
@@ -450,7 +463,17 @@ useEffect(()=>{
   }
 },[]);
 
-useEffect(()=>{STORE.set("ft-logs",logs)},[logs]);useEffect(()=>{STORE.set("ft-wdone",wDone)},[wDone]);useEffect(()=>{STORE.set("ft-meals",meals)},[meals]);useEffect(()=>{STORE.set("ft-notes",notes)},[notes]);useEffect(()=>{STORE.set("ft-bw",bodyW)},[bodyW]);useEffect(()=>{STORE.set("ft-sleep",sleepD)},[sleepD]);useEffect(()=>{STORE.set("ft-sprints",sprints)},[sprints]);useEffect(()=>{STORE.set("ft-photos",photos)},[photos]);useEffect(()=>{STORE.set("ft-swaps",swaps)},[swaps]);useEffect(()=>{STORE.set("ft-theme",light?"light":"dark")},[light]);useEffect(()=>{STORE.set("ft-dur",durations)},[durations]);useEffect(()=>{STORE.set("ft-rpes",rpes)},[rpes]);useEffect(()=>{STORE.set("ft-cardio",cardio)},[cardio]);
+useEffect(()=>{STORE.set("ft-logs",logs)},[logs]);useEffect(()=>{STORE.set("ft-wdone",wDone)},[wDone]);useEffect(()=>{STORE.set("ft-meals",meals)},[meals]);useEffect(()=>{STORE.set("ft-notes",notes)},[notes]);useEffect(()=>{STORE.set("ft-bw",bodyW)},[bodyW]);useEffect(()=>{STORE.set("ft-sleep",sleepD)},[sleepD]);useEffect(()=>{STORE.set("ft-sprints",sprints)},[sprints]);useEffect(()=>{STORE.set("ft-photos",photos)},[photos]);useEffect(()=>{STORE.set("ft-swaps",swaps)},[swaps]);useEffect(()=>{STORE.set("ft-theme",light?"light":"dark")},[light]);useEffect(()=>{STORE.set("ft-dur",durations)},[durations]);useEffect(()=>{STORE.set("ft-rpes",rpes)},[rpes]);useEffect(()=>{STORE.set("ft-cardio",cardio)},[cardio]);useEffect(()=>{STORE.set("ft-offdays",offDays);if(!locked&&!splash)scheduleReminders(week,phase,offDays)},[offDays]);
+
+// ── Off-day helpers ──
+const isOff=useCallback((w,day)=>!!offDays[`${w}-${day}`],[offDays]);
+const getOff=useCallback((w,day)=>offDays[`${w}-${day}`]||null,[offDays]);
+const markOff=(w,day,reason,note="")=>{
+  setOffDays(p=>({...p,[`${w}-${day}`]:{reason,note:note||"",at:Date.now()}}));
+};
+const unmarkOff=(w,day)=>{
+  setOffDays(p=>{const n={...p};delete n[`${w}-${day}`];return n});
+};
 
 // Find exercise index by name in a specific week/day
 const findExIdx=(w,day,name)=>{const p=gp(w),ses=PROGRAM[p].sessions[day];if(!ses)return-1;return ses.exercises.findIndex(e=>e.name===name)};
@@ -518,7 +541,7 @@ if(cur>0&&curReps){
 }
 return n});
 if(cur>prev&&cur>0){setTimeout(()=>setPrB({exercise:exN,weight:cur}),300);try{navigator.vibrate([100,50,100,50,100])}catch(e){}}else{try{navigator.vibrate(40)}catch(e){}}
-if("Notification"in window&&Notification.permission==="default"&&!LS.get("ft-notif-asked")){LS.set("ft-notif-asked",true);setTimeout(()=>Notification.requestPermission().then(()=>scheduleReminders(week,phase)),800)}if(rest>0){setTimer(rest);scheduleRestNotif(rest)}
+if("Notification"in window&&Notification.permission==="default"&&!LS.get("ft-notif-asked")){LS.set("ft-notif-asked",true);setTimeout(()=>Notification.requestPermission().then(()=>scheduleReminders(week,phase,offDays)),800)}if(rest>0){setTimer(rest);scheduleRestNotif(rest)}
 const ses=PROGRAM[phase].sessions[day];if(ses){let nextEx=null;for(let e=ei;e<ses.exercises.length;e++){const startS=e===ei?si+1:0;for(let s=startS;s<ses.exercises[e].sets;s++){const nk=sk(week,day,e,s);if(!logs[nk]||!logs[nk].done){nextEx=e;break}}if(nextEx!==null)break}if(nextEx!==null&&nextEx!==ei){setTimeout(()=>{setOpenEx(nextEx);setTimeout(()=>{const el=exRefs.current[nextEx];if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},100)},rest>0?500:100)}}};
 const undoSet=(day,ei,si)=>{setLogs(p=>{const e={...(p[sk(week,day,ei,si)]||{})};delete e.done;return{...p,[sk(week,day,ei,si)]:e}})};
 const togDay=(day)=>{const wasDone=wDone[`${week}-${day}`];setWDone(p=>({...p,[`${week}-${day}`]:!p[`${week}-${day}`]}));if(!wasDone){try{navigator.vibrate([50,30,50,30,100])}catch(e){}setCeleb(day);setTimeout(()=>setCeleb(null),2800)}};
@@ -651,11 +674,12 @@ const hasTodaySession=DAYS.includes(todayDayMapped);
 const todayDone=wDone[`${week}-${todayDayMapped}`];
 const showReminder=hasTodaySession&&!todayDone&&!selDay&&view==="week";
 
-const exportD=()=>{const d=JSON.stringify({logs,wDone,meals,notes,bodyW,sleepD,sprints,photos,swaps,durations,rpes,cardio},null,2);const b=new Blob([d],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`prepa-${new Date().toISOString().slice(0,10)}.json`;a.click();STORE.set("ft-last-export",Date.now())};
-const importD=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);["logs","wDone","meals","notes","bodyW","sleepD","sprints","photos","swaps","durations","rpes","cardio"].forEach(k=>{if(d[k]){const setter={logs:setLogs,wDone:setWDone,meals:setMeals,notes:setNotes,bodyW:setBodyW,sleepD:setSleepD,sprints:setSprints,photos:setPhotos,swaps:setSwaps,durations:setDurations,rpes:setRpes,cardio:setCardio}[k];setter(d[k])}});showAlert("Import réussi ✓")}catch(er){showAlert("Erreur lors de l'import",false)}};r.readAsText(f)};
+const exportD=()=>{const d=JSON.stringify({logs,wDone,meals,notes,bodyW,sleepD,sprints,photos,swaps,durations,rpes,cardio,offDays},null,2);const b=new Blob([d],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`prepa-${new Date().toISOString().slice(0,10)}.json`;a.click();STORE.set("ft-last-export",Date.now())};
+const importD=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);["logs","wDone","meals","notes","bodyW","sleepD","sprints","photos","swaps","durations","rpes","cardio","offDays"].forEach(k=>{if(d[k]){const setter={logs:setLogs,wDone:setWDone,meals:setMeals,notes:setNotes,bodyW:setBodyW,sleepD:setSleepD,sprints:setSprints,photos:setPhotos,swaps:setSwaps,durations:setDurations,rpes:setRpes,cardio:setCardio,offDays:setOffDays}[k];setter(d[k])}});showAlert("Import réussi ✓")}catch(er){showAlert("Erreur lors de l'import",false)}};r.readAsText(f)};
 
-const cp=PROGRAM[phase],pc=cp.color,dC=DAYS.filter(d=>wDone[`${week}-${d}`]).length,dG=Math.max(0,Math.ceil((new Date("2026-08-04")-new Date())/864e5)),isDL=DELOAD.includes(week);
+const cp=PROGRAM[phase],pc=cp.color,dTotal=DAYS.filter(d=>!isOff(week,d)).length,dC=DAYS.filter(d=>wDone[`${week}-${d}`]).length,dG=Math.max(0,Math.ceil((new Date("2026-08-04")-new Date())/864e5)),isDL=DELOAD.includes(week);
 // Streak with "grace" : 1 missed scheduled day tolerated, +1 per 14 scheduled days walked
+// Off days are skipped entirely (neither counted nor penalized)
 // Today-undone is never counted as missed (user still has time to do it).
 const calcStreak=(()=>{
   let s=0,missed=0,scheduledSeen=0;
@@ -668,16 +692,20 @@ const calcStreak=(()=>{
     const diff=d-st;
     const wn=diff<=0?1:Math.max(1,Math.min(16,Math.ceil(diff/(7*864e5))));
     if(DAYS.includes(dn)){
-      scheduledSeen++;
-      if(wDone[`${wn}-${dn}`]){s++}
+      // Off day : skip entirely, don't count, don't penalize, don't advance scheduledSeen
+      if(offDays[`${wn}-${dn}`]){/* skip */}
       else{
-        // today pending : don't count, don't penalize
-        if(i===0){/* noop */}
+        scheduledSeen++;
+        if(wDone[`${wn}-${dn}`]){s++}
         else{
-          missed++;
-          // Grace : 1 miss forgiven + 1 extra per 14 scheduled days walked
-          const maxAllowed=1+Math.floor(scheduledSeen/14);
-          if(missed>maxAllowed)break;
+          // today pending : don't count, don't penalize
+          if(i===0){/* noop */}
+          else{
+            missed++;
+            // Grace : 1 miss forgiven + 1 extra per 14 scheduled days walked
+            const maxAllowed=1+Math.floor(scheduledSeen/14);
+            if(missed>maxAllowed)break;
+          }
         }
       }
     }
@@ -698,12 +726,15 @@ const streakMissed=(()=>{
     const diff=d-st;
     const wn=diff<=0?1:Math.max(1,Math.min(16,Math.ceil(diff/(7*864e5))));
     if(DAYS.includes(dn)){
-      scheduledSeen++;
-      if(!wDone[`${wn}-${dn}`]){
-        if(i!==0){
-          missed++;
-          const maxAllowed=1+Math.floor(scheduledSeen/14);
-          if(missed>maxAllowed)break;
+      if(offDays[`${wn}-${dn}`]){/* skip */}
+      else{
+        scheduledSeen++;
+        if(!wDone[`${wn}-${dn}`]){
+          if(i!==0){
+            missed++;
+            const maxAllowed=1+Math.floor(scheduledSeen/14);
+            if(missed>maxAllowed)break;
+          }
         }
       }
     }
@@ -774,7 +805,49 @@ h("div",{style:{fontSize:11,color:"rgba(255,255,255,0.8)",marginTop:2}},["Bravo,
 histEx&&h(ExHist,{exName:histEx,logs,color:pc,onClose:()=>setHistEx(null),T}),
 focusMode&&selDay&&cp.sessions[selDay]&&h(FocusMode,{exercises:cp.sessions[selDay].exercises,week,selDay,logs,rpes,setRpes,uField,valSet,undoSet,onClose:()=>setFocusMode(false),color:pc,T,light,getLL,getProgressiveTarget,exNameAt:(ei,originalName)=>{const k=`${week}-${selDay}-${ei}`;return swaps[k]||originalName}}),
 
-// Swap modal
+// Off-day modal
+offModal!==null&&h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",padding:20},onClick:()=>setOffModal(null)},
+  h("div",{className:"fade-in",onClick:e=>e.stopPropagation(),style:{background:T.card2,border:`1px solid ${T.border}`,borderRadius:16,padding:20,width:"100%",maxWidth:360}},
+    h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+      h("div",{style:{fontSize:14,fontWeight:800,color:T.text}},offModal.editing?"Modifier le jour off":"Marquer en off"),
+      h("button",{onClick:()=>setOffModal(null),style:{background:"none",border:"none",color:T.text4,fontSize:16,cursor:"pointer"}},"✕")
+    ),
+    h("div",{style:{fontSize:11,color:T.text4,marginBottom:14}},`${DF[offModal.day]} · Semaine ${offModal.week}`),
+    h("div",{style:{fontSize:10,color:T.text4,letterSpacing:1,marginBottom:8,fontWeight:700}},"RAISON"),
+    h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}},
+      Object.entries(OFF_REASONS).map(([key,info])=>{
+        const selected=offModal.reason===key;
+        return h("button",{key,onClick:()=>{
+          // Check if logs exist before confirming
+          const hasLogs=(()=>{
+            const ses=PROGRAM[gp(offModal.week)].sessions[offModal.day];
+            if(!ses)return false;
+            for(let ei=0;ei<ses.exercises.length;ei++){
+              for(let si=0;si<ses.exercises[ei].sets;si++){
+                if(logs[sk(offModal.week,offModal.day,ei,si)]?.done)return true;
+              }
+            }
+            return false;
+          })();
+          const doMark=()=>{markOff(offModal.week,offModal.day,key,offModal.note||"");setOffModal(null);showAlert(`${info.emoji} Journée marquée ${info.label.toLowerCase()}`,true)};
+          if(hasLogs&&!offModal.editing){
+            setOffModal(null);
+            showConfirm("Séries déjà loggées","Tu as déjà validé des séries ce jour. Elles seront conservées mais la journée comptera comme off. Confirmer ?",doMark,{okLabel:"Marquer off"});
+          }else{
+            doMark();
+          }
+        },style:{padding:"14px 8px",borderRadius:10,border:selected?`2px solid ${info.color}`:`1px solid ${T.border}`,background:selected?`${info.color}20`:T.card,color:selected?info.color:T.text2,fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}},
+          h("span",{style:{fontSize:22}},info.emoji),
+          h("span",null,info.label)
+        );
+      })
+    ),
+    h("div",{style:{fontSize:10,color:T.text4,letterSpacing:1,marginBottom:6,fontWeight:700}},"NOTE (facultatif)"),
+    h("input",{type:"text",value:offModal.note||"",placeholder:"ex: gastro · mal de dos…",onChange:e=>setOffModal(m=>({...m,note:e.target.value})),style:{width:"100%",padding:"10px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.input,color:T.text,fontSize:12,outline:"none",marginBottom:14}}),
+    offModal.editing&&h("button",{onClick:()=>{unmarkOff(offModal.week,offModal.day);setOffModal(null);showAlert("Jour off retiré ✓",true)},style:{width:"100%",padding:"11px",borderRadius:10,border:`1px solid ${T.border}`,background:"transparent",color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer"}},"↩ Retirer le jour off"),
+    !offModal.editing&&h("div",{style:{fontSize:10,color:T.text5,textAlign:"center",fontStyle:"italic"}},"Touche une raison pour valider")
+  )
+),
 showSwap!==null&&h("div",{style:{position:"fixed",inset:0,background:T===LIGHT?"rgba(255,255,255,0.95)":"rgba(2,2,8,0.92)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)",padding:20}},
   h("div",{className:"fade-in",style:{background:T.card2,border:`1px solid ${T.border}`,borderRadius:16,padding:20,width:"100%",maxWidth:340}},
     h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:12}},h("div",{style:{fontSize:13,fontWeight:800,color:pc}},"Remplacer par"),h("button",{onClick:()=>setShowSwap(null),style:{background:"none",border:"none",color:T.text4,fontSize:16,cursor:"pointer"}},"✕")),
@@ -847,6 +920,8 @@ view==="week"&&!selDay&&h(React.Fragment,null,
     // Sunday tricky : if today=Sunday, past days = Mon-Fri
     const todayWeekIdx=todayDay==="dimanche"?7:todayDay==="samedi"?6:({lundi:1,mardi:2,mercredi:3,jeudi:4,vendredi:5}[todayDay]||0);
     if(trainingIdx>=todayWeekIdx)return false;
+    // Exclude off days (neither done nor missed)
+    if(offDays[`${week}-${d}`])return false;
     return !wDone[`${week}-${d}`];
   });
   if(missed.length===0)return null;
@@ -874,29 +949,44 @@ return h("button",{onClick:()=>{setSelDay(todayDayMapped);setOpenEx(null)},style
 h("div",{style:{fontSize:28}},done?"✓":"⚡"),
 h("div",{style:{flex:1}},h("div",{style:{fontSize:10,letterSpacing:2,opacity:0.85,fontWeight:700}},done?"SÉANCE DU JOUR · TERMINÉE":"SÉANCE DU JOUR"),h("div",{style:{fontSize:15,fontWeight:800,marginTop:2}},ses.title),h("div",{style:{fontSize:11,opacity:0.85,marginTop:1}},`${DF[todayDayMapped]} · ${ses.time}${pct>0&&!done?` · ${pct}% fait`:""}`)),
 h("div",{style:{fontSize:22}},"→"))})(),
-h("div",{style:{marginBottom:10}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},h("span",{style:{fontSize:10,color:T.text4}},`Semaine ${week}`),h("div",{style:{display:"flex",alignItems:"center",gap:8}},calcStreak>0&&h("div",{style:{background:`${pc}20`,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,color:pc,display:"flex",alignItems:"center",gap:4}},h("span",null,`🔥 ${calcStreak} j`),streakMissed>0&&h("span",{style:{fontSize:9,color:T.text4,fontWeight:500,opacity:0.8}},`· ${streakMissed} grâce`)),h("span",{style:{fontSize:10,color:pc,fontWeight:700}},`${dC}/6`))),h("div",{style:{height:4,background:T.card2,borderRadius:2,overflow:"hidden"}},h("div",{style:{height:"100%",width:`${(dC/6)*100}%`,background:pc,borderRadius:2,transition:"width 0.3s"}}))),
+h("div",{style:{marginBottom:10}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},h("span",{style:{fontSize:10,color:T.text4}},`Semaine ${week}`),h("div",{style:{display:"flex",alignItems:"center",gap:8}},calcStreak>0&&h("div",{style:{background:`${pc}20`,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,color:pc,display:"flex",alignItems:"center",gap:4}},h("span",null,`🔥 ${calcStreak} j`),streakMissed>0&&h("span",{style:{fontSize:9,color:T.text4,fontWeight:500,opacity:0.8}},`· ${streakMissed} grâce`)),h("span",{style:{fontSize:10,color:pc,fontWeight:700}},`${dC}/${dTotal}${dTotal<6?" · "+(6-dTotal)+" off":""}`))),h("div",{style:{height:4,background:T.card2,borderRadius:2,overflow:"hidden"}},h("div",{style:{height:"100%",width:`${dTotal>0?(dC/dTotal)*100:0}%`,background:pc,borderRadius:2,transition:"width 0.3s"}}))),
 // Progression button
 dC>0&&h("div",{onClick:()=>{const pe=week<=6?6:week<=12?12:16;showConfirm("Pré-remplir la progression",`Calculer les charges S${week+1}→S${pe}. Les séries validées ne seront pas modifiées.`,generateProgression,{okLabel:"Calculer"})},style:{width:"100%",padding:"10px 14px",borderRadius:10,border:`1px solid #22c55e30`,background:light?"#f0fdf4":"#0a1a0a",cursor:"pointer",marginBottom:10}},h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:"#22c55e"}},"📈 Pré-remplir les semaines suivantes"),h("div",{style:{fontSize:10,color:light?"#166534":"#4a8",marginTop:2}},`Calcule les charges S${week+1} → S${week<=6?6:week<=12?12:16} à partir de tes données actuelles`)),h("div",{style:{fontSize:16,color:"#22c55e"}},"→"))),
-DAYS.map(day=>{const ses=cp.sessions[day],done=wDone[`${week}-${day}`];let tot=0,dn2=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){tot++;if(logs[sk(week,day,ei,s)]&&logs[sk(week,day,ei,s)].done)dn2++}});const pct=tot>0?Math.round((dn2/tot)*100):0;const vol=getVolume(day);const isToday=day===todayDayMapped;
-return h("div",{key:day,onClick:()=>{setSelDay(day);setOpenEx(null)},style:{background:done?`#22c55e${light?"15":"08"}`:isToday?`${pc}05`:T.card,border:`1px solid ${done?"#22c55e30":isToday?pc+"15":T.border}`,borderRadius:11,padding:"11px 13px",marginBottom:5,cursor:"pointer"}},
-h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",{style:{display:"flex",alignItems:"center",gap:9}},h("div",{style:{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:done?"#22c55e":isToday?`${pc}20`:T.card2,color:done?"#fff":isToday?pc:T.text4,fontSize:10,fontWeight:800}},done?"✓":DL[day]),h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:done?"#22c55e":T.text2}},ses.title),h("div",{style:{fontSize:11,color:T.text4,marginTop:1}},ses.time," · ",ses.exercises.length," exos",vol>0?` · ${vol}kg`:""))),h("div",{style:{display:"flex",alignItems:"center",gap:6}},pct>0&&!done&&h("div",{style:{width:28,height:28,position:"relative"}},h("svg",{width:28,height:28,style:{transform:"rotate(-90deg)"}},h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:T.border,strokeWidth:3}),h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:pc,strokeWidth:3,strokeLinecap:"round",strokeDasharray:2*Math.PI*11,strokeDashoffset:2*Math.PI*11*(1-pct/100)})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:800,color:pc}},pct)),h("div",{style:{color:T.border,fontSize:13}},"›"))),
-FOOT[day]&&h("div",{style:{marginTop:5,padding:"3px 7px",borderRadius:5,background:light?"#dcfce7":"#0f1a0f",border:`1px solid ${light?"#86efac":"#1a2e1a"}`,fontSize:9,color:light?"#166534":"#4a4",display:"inline-block"}},"⚽ Foot"),
-(bodyW[`${week}-${day}`]||sleepD[`${week}-${day}`])&&h("div",{style:{marginTop:3,fontSize:9,color:T.text4}},bodyW[`${week}-${day}`]?`⚖️ ${bodyW[`${week}-${day}`]}kg `:"",sleepD[`${week}-${day}`]?`😴 ${sleepD[`${week}-${day}`]}h`:""),
-notes[`${week}-${day}`]&&h("div",{style:{marginTop:3,fontSize:9,color:T.text4,fontStyle:"italic"}},"📝 ",notes[`${week}-${day}`].slice(0,50)))})),
+DAYS.map(day=>{const ses=cp.sessions[day],done=wDone[`${week}-${day}`];const offInfo=offDays[`${week}-${day}`];const isOffDay=!!offInfo;const reasonInfo=isOffDay?OFF_REASONS[offInfo.reason]:null;let tot=0,dn2=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){tot++;if(logs[sk(week,day,ei,s)]&&logs[sk(week,day,ei,s)].done)dn2++}});const pct=tot>0?Math.round((dn2/tot)*100):0;const vol=getVolume(day);const isToday=day===todayDayMapped;
+return h("div",{key:day,onClick:()=>{setSelDay(day);setOpenEx(null)},style:{background:isOffDay?(light?"#f5f5f5":"#0e0e14"):done?`#22c55e${light?"15":"08"}`:isToday?`${pc}05`:T.card,border:`1px solid ${isOffDay?(light?"#e0e0e0":"#1a1a24"):done?"#22c55e30":isToday?pc+"15":T.border}`,borderRadius:11,padding:"11px 13px",marginBottom:5,cursor:"pointer",opacity:isOffDay?0.75:1}},
+h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",{style:{display:"flex",alignItems:"center",gap:9}},h("div",{style:{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:isOffDay?(light?"#e0e0e0":"#1a1a24"):done?"#22c55e":isToday?`${pc}20`:T.card2,color:isOffDay?T.text3:done?"#fff":isToday?pc:T.text4,fontSize:isOffDay?16:10,fontWeight:800}},isOffDay?reasonInfo.emoji:done?"✓":DL[day]),h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:isOffDay?T.text3:done?"#22c55e":T.text2,textDecoration:isOffDay?"line-through":"none"}},isOffDay?`Journée off · ${reasonInfo.label}`:ses.title),h("div",{style:{fontSize:11,color:T.text4,marginTop:1}},isOffDay?(offInfo.note?`"${offInfo.note}"`:DL[day]+" · "+ses.title):(ses.time+" · "+ses.exercises.length+" exos"+(vol>0?` · ${vol}kg`:""))))),h("div",{style:{display:"flex",alignItems:"center",gap:6}},!isOffDay&&pct>0&&!done&&h("div",{style:{width:28,height:28,position:"relative"}},h("svg",{width:28,height:28,style:{transform:"rotate(-90deg)"}},h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:T.border,strokeWidth:3}),h("circle",{cx:14,cy:14,r:11,fill:"none",stroke:pc,strokeWidth:3,strokeLinecap:"round",strokeDasharray:2*Math.PI*11,strokeDashoffset:2*Math.PI*11*(1-pct/100)})),h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:800,color:pc}},pct)),h("div",{style:{color:T.border,fontSize:13}},"›"))),
+!isOffDay&&FOOT[day]&&h("div",{style:{marginTop:5,padding:"3px 7px",borderRadius:5,background:light?"#dcfce7":"#0f1a0f",border:`1px solid ${light?"#86efac":"#1a2e1a"}`,fontSize:9,color:light?"#166534":"#4a4",display:"inline-block"}},"⚽ Foot"),
+!isOffDay&&(bodyW[`${week}-${day}`]||sleepD[`${week}-${day}`])&&h("div",{style:{marginTop:3,fontSize:9,color:T.text4}},bodyW[`${week}-${day}`]?`⚖️ ${bodyW[`${week}-${day}`]}kg `:"",sleepD[`${week}-${day}`]?`😴 ${sleepD[`${week}-${day}`]}h`:""),
+!isOffDay&&notes[`${week}-${day}`]&&h("div",{style:{marginTop:3,fontSize:9,color:T.text4,fontStyle:"italic"}},"📝 ",notes[`${week}-${day}`].slice(0,50)))})),
 
 // ═══ SESSION VIEW ═══
 view==="week"&&selDay&&(()=>{const ses=cp.sessions[selDay],nk=`${week}-${selDay}`,vol=getVolume(selDay);
 // Swipe hint
 const dayIdx=DAYS.indexOf(selDay);
+const sessOffInfo=offDays[`${week}-${selDay}`];
+const sessIsOff=!!sessOffInfo;
+const sessReasonInfo=sessIsOff?OFF_REASONS[sessOffInfo.reason]:null;
 return h(React.Fragment,null,
 h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}},
   h("button",{onClick:()=>{setSelDay(null);setOpenEx(null)},style:{background:"none",border:"none",color:pc,fontSize:12,cursor:"pointer",padding:0}},"← Retour"),
-  h("div",{style:{display:"flex",gap:4}},
+  h("div",{style:{display:"flex",gap:4,alignItems:"center"}},
+    !sessIsOff&&h("button",{onClick:()=>setOffModal({week,day:selDay,reason:null,note:"",editing:false}),style:{background:T.card2,border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:T.text4,fontSize:10,display:"flex",alignItems:"center",gap:3}},h("span",{style:{fontSize:11}},"🛌"),h("span",null,"Off")),
     dayIdx>0&&h("button",{onClick:()=>{setSlideDir("right");slideKey.current++;setSelDay(DAYS[dayIdx-1]);setOpenEx(null)},style:{background:T.card2,border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:T.text3,fontSize:10}},`◂ ${DL[DAYS[dayIdx-1]]}`),
     dayIdx<DAYS.length-1&&h("button",{onClick:()=>{setSlideDir("left");slideKey.current++;setSelDay(DAYS[dayIdx+1]);setOpenEx(null)},style:{background:T.card2,border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:T.text3,fontSize:10}},`${DL[DAYS[dayIdx+1]]} ▸`)
   )
 ),
-h("div",{key:"sess-"+selDay+"-"+slideKey.current,style:{animation:slideDir?`slide${slideDir==="left"?"Left":"Right"} 0.2s ease-out`:"none"}},
+// Off-day banner (replaces session content interaction)
+sessIsOff&&h("div",{onClick:()=>setOffModal({week,day:selDay,reason:sessOffInfo.reason,note:sessOffInfo.note||"",editing:true}),style:{background:light?`${sessReasonInfo.color}12`:`${sessReasonInfo.color}15`,border:`1px solid ${sessReasonInfo.color}40`,borderRadius:12,padding:"14px 16px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:12}},
+  h("div",{style:{fontSize:28}},sessReasonInfo.emoji),
+  h("div",{style:{flex:1}},
+    h("div",{style:{fontSize:10,letterSpacing:2,fontWeight:700,color:sessReasonInfo.color,marginBottom:2}},"JOURNÉE OFF"),
+    h("div",{style:{fontSize:15,fontWeight:800,color:T.text}},sessReasonInfo.label),
+    sessOffInfo.note&&h("div",{style:{fontSize:11,color:T.text3,marginTop:2,fontStyle:"italic"}},`"${sessOffInfo.note}"`),
+    h("div",{style:{fontSize:10,color:T.text4,marginTop:3}},"Touche pour modifier ou retirer")
+  ),
+  h("div",{style:{fontSize:14,color:T.text4}},"›")
+),
+h("div",{key:"sess-"+selDay+"-"+slideKey.current,style:{animation:slideDir?`slide${slideDir==="left"?"Left":"Right"} 0.2s ease-out`:"none",opacity:sessIsOff?0.5:1,pointerEvents:sessIsOff?"none":"auto"}},
 (()=>{// Calculate time remaining estimate
   let remSets=0,remRest=0,avgRpeThisEx=0;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){const l=logs[sk(week,selDay,ei,s)];if(!l||!l.done){remSets++;remRest+=(ex.rest||60)}}});
   if(remSets===0)return null;
@@ -986,14 +1076,16 @@ ex.rest>0&&h("button",{onClick:()=>{setTimer(ex.rest);scheduleRestNotif(ex.rest)
 // Sprint
 (selDay==="mercredi"||selDay==="lundi"||selDay==="vendredi")&&ses.exercises.some(e=>e.name.toLowerCase().includes("sprint"))&&h("div",{style:{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginTop:8,marginBottom:8}},h("div",{style:{fontSize:11,color:T.text4,letterSpacing:1,marginBottom:6}},"⚡ TEMPS SPRINT 20M"),h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("input",{type:"number",inputMode:"decimal",placeholder:"sec",value:sprints[`${week}-w${week}`]||"",onChange:e=>setSprints(p=>({...p,[`${week}-w${week}`]:e.target.value})),style:{width:70,padding:"6px 8px",borderRadius:7,border:`1px solid ${T.border}`,background:T.input,color:T.text,fontSize:13,textAlign:"center",outline:"none"}}),h("span",{style:{fontSize:11,color:T.text4}},"sec"))),
 h("div",{style:{marginTop:8,marginBottom:8}},h("div",{style:{fontSize:11,color:T.text4,letterSpacing:1,marginBottom:4}},"📝 NOTES"),h("textarea",{value:notes[nk]||"",onChange:e=>setNotes(p=>({...p,[nk]:e.target.value})),placeholder:"Énergie, douleurs, ressenti...",rows:2,style:{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.input,color:T.text2,fontSize:12,outline:"none",resize:"vertical"}})),
-h("button",{onClick:()=>togDay(selDay),style:{width:"100%",padding:"13px",borderRadius:11,border:"none",cursor:"pointer",marginTop:4,background:wDone[`${week}-${selDay}`]?T.card2:`linear-gradient(135deg,${pc},${pc}cc)`,color:wDone[`${week}-${selDay}`]?T.text3:"#fff",fontSize:13,fontWeight:700}},wDone[`${week}-${selDay}`]?"↩ Rouvrir":"✓ Terminer"),
+!sessIsOff&&h("button",{onClick:()=>togDay(selDay),style:{width:"100%",padding:"13px",borderRadius:11,border:"none",cursor:"pointer",marginTop:4,background:wDone[`${week}-${selDay}`]?T.card2:`linear-gradient(135deg,${pc},${pc}cc)`,color:wDone[`${week}-${selDay}`]?T.text3:"#fff",fontSize:13,fontWeight:700}},wDone[`${week}-${selDay}`]?"↩ Rouvrir":"✓ Terminer"),
 h("div",{style:{textAlign:"center",marginTop:8,fontSize:10,color:T.text5}},"← Swipe pour changer de jour →")))})(),
 
 // ═══ STATS ═══
 view==="stats"&&h(React.Fragment,null,
 // Weekly recap (current week or last completed)
-(()=>{const recapWeek=week;let totVol=0,totSets=0,doneSets=0,bestLift=null,bestLiftKg=0;DAYS.forEach(day=>{const p2=gp(recapWeek);const ses=PROGRAM[p2].sessions[day];if(!ses)return;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){totSets++;const l=logs[sk(recapWeek,day,ei,s)];if(l&&l.done){doneSets++;if(l.kg&&l.reps){totVol+=parseFloat(l.kg)*(parseInt(l.reps)||0);if(parseFloat(l.kg)>bestLiftKg){bestLiftKg=parseFloat(l.kg);bestLift=ex.name}}}}})});
+(()=>{const recapWeek=week;let totVol=0,totSets=0,doneSets=0,bestLift=null,bestLiftKg=0;DAYS.forEach(day=>{if(offDays[`${recapWeek}-${day}`])return;const p2=gp(recapWeek);const ses=PROGRAM[p2].sessions[day];if(!ses)return;ses.exercises.forEach((ex,ei)=>{for(let s=0;s<ex.sets;s++){totSets++;const l=logs[sk(recapWeek,day,ei,s)];if(l&&l.done){doneSets++;if(l.kg&&l.reps){totVol+=parseFloat(l.kg)*(parseInt(l.reps)||0);if(parseFloat(l.kg)>bestLiftKg){bestLiftKg=parseFloat(l.kg);bestLift=ex.name}}}}})});
 const daysDone=DAYS.filter(d=>wDone[`${recapWeek}-${d}`]).length;
+const daysTotal=DAYS.filter(d=>!offDays[`${recapWeek}-${d}`]).length;
+const daysOff=6-daysTotal;
 // Nutrition compliance
 const allNutIds=["meal-0","meal-1","meal-2","meal-3","meal-4","meal-5","creatine","water","sleep"];let nutDays=0;for(let i=0;i<7;i++){const dt=new Date();dt.setDate(dt.getDate()-i);const ds=dt.toISOString().slice(0,10);const ck=allNutIds.filter(id=>meals[`${ds}-${id}`]).length;if(ck===allNutIds.length)nutDays++}
 // Body weight change this week
@@ -1003,7 +1095,7 @@ let totDur=0;DAYS.forEach(d=>{if(durations[`${recapWeek}-${d}`])totDur+=duration
 // Average RPE
 const weekRpes=Object.entries(rpes).filter(e=>e[0].startsWith(`${recapWeek}-`)&&e[1]).map(e=>e[1]);const avgRpe=weekRpes.length?(weekRpes.reduce((a,b)=>a+b,0)/weekRpes.length).toFixed(1):null;
 return h("div",{style:{background:`linear-gradient(135deg,${pc}${light?"10":"15"},${pc}${light?"05":"08"})`,border:`1px solid ${pc}30`,borderRadius:14,padding:"14px 14px 12px",marginBottom:14}},
-h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},h("div",{style:{fontSize:11,fontWeight:700,color:pc,letterSpacing:2}},`📊 RÉCAP SEMAINE ${recapWeek}`),h("div",{style:{fontSize:10,color:T.text4,fontWeight:600}},`${daysDone}/6 séances`)),
+h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},h("div",{style:{fontSize:11,fontWeight:700,color:pc,letterSpacing:2}},`📊 RÉCAP SEMAINE ${recapWeek}`),h("div",{style:{fontSize:10,color:T.text4,fontWeight:600}},`${daysDone}/${daysTotal} séances${daysOff>0?` · ${daysOff} off`:""}`)),
 h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}},
   h("div",{style:{background:T.card,borderRadius:9,padding:"8px 10px"}},h("div",{style:{fontSize:11,color:T.text4,letterSpacing:1}},"VOLUME"),h("div",{style:{fontSize:15,fontWeight:800,color:T.text2}},`${(totVol/1000).toFixed(1)}t`)),
   h("div",{style:{background:T.card,borderRadius:9,padding:"8px 10px"}},h("div",{style:{fontSize:11,color:T.text4,letterSpacing:1}},"SÉRIES"),h("div",{style:{fontSize:15,fontWeight:800,color:T.text2}},`${doneSets}/${totSets}`)),
@@ -1065,18 +1157,24 @@ h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}},
 )),
 
 // ═══ CALENDAR ═══
-view==="cal"&&(()=>{const weeks=[];for(let w=1;w<=16;w++){const ds=DAYS.map(d=>{const done=wDone[`${w}-${d}`];const hasSomeLog=PROGRAM[gp(w)].sessions[d]?.exercises.some((ex,ei)=>{for(let s=0;s<ex.sets;s++){if(logs[sk(w,d,ei,s)]?.done)return true}return false});return{day:d,done,partial:hasSomeLog&&!done}});weeks.push({w,days:ds})}
+view==="cal"&&(()=>{const weeks=[];for(let w=1;w<=16;w++){const ds=DAYS.map(d=>{const done=wDone[`${w}-${d}`];const offInfo=offDays[`${w}-${d}`];const hasSomeLog=PROGRAM[gp(w)].sessions[d]?.exercises.some((ex,ei)=>{for(let s=0;s<ex.sets;s++){if(logs[sk(w,d,ei,s)]?.done)return true}return false});return{day:d,done,partial:hasSomeLog&&!done,offInfo}});weeks.push({w,days:ds})}
 return h(React.Fragment,null,
 h("div",{style:{fontSize:10,fontWeight:700,color:T.text4,letterSpacing:1,marginBottom:10}},"📅 CALENDRIER"),
 h("div",{style:{display:"grid",gridTemplateColumns:"30px repeat(6,1fr)",gap:2,marginBottom:16}},
 h("div"),DAYS.map(d=>h("div",{key:d,style:{textAlign:"center",fontSize:10,fontWeight:700,color:T.text4}},DL[d])),
 weeks.map(wk=>[
   h("div",{key:`l${wk.w}`,style:{fontSize:11,fontWeight:700,color:gw()===wk.w?pc:T.text4,display:"flex",alignItems:"center",justifyContent:"center"}},wk.w),
-  ...wk.days.map((d,i)=>h("div",{key:`${wk.w}-${i}`,onClick:()=>{setWeek(wk.w);setPhase(gp(wk.w));setSelDay(d.day);setView("week")},style:{aspectRatio:"1",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:d.done?"#22c55e":d.partial?`${pc}40`:DELOAD.includes(wk.w)?"#f59e0b15":T.card2,border:`1px solid ${d.done?"#22c55e30":T.border}`}},h("div",{style:{width:6,height:6,borderRadius:3,background:d.done?"#fff":d.partial?pc:"transparent"}})))
+  ...wk.days.map((d,i)=>{
+    const offReasonInfo=d.offInfo?OFF_REASONS[d.offInfo.reason]:null;
+    return h("div",{key:`${wk.w}-${i}`,onClick:()=>{setWeek(wk.w);setPhase(gp(wk.w));setSelDay(d.day);setView("week")},style:{aspectRatio:"1",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:d.offInfo?(light?"#e8e8e0":"#1a1a24"):d.done?"#22c55e":d.partial?`${pc}40`:DELOAD.includes(wk.w)?"#f59e0b15":T.card2,border:`1px solid ${d.offInfo?T.border:d.done?"#22c55e30":T.border}`,opacity:d.offInfo?0.7:1}},
+      d.offInfo?h("div",{style:{fontSize:10}},offReasonInfo.emoji):h("div",{style:{width:6,height:6,borderRadius:3,background:d.done?"#fff":d.partial?pc:"transparent"}})
+    );
+  })
 ]).flat()),
-h("div",{style:{display:"flex",gap:12,justifyContent:"center",marginTop:8}},
+h("div",{style:{display:"flex",gap:10,justifyContent:"center",marginTop:8,flexWrap:"wrap"}},
   h("div",{style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:8,height:8,borderRadius:4,background:"#22c55e"}}),h("span",{style:{fontSize:11,color:T.text4}},"Complété")),
   h("div",{style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:8,height:8,borderRadius:4,background:pc}}),h("span",{style:{fontSize:11,color:T.text4}},"En cours")),
+  h("div",{style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:8,height:8,borderRadius:4,background:light?"#e8e8e0":"#1a1a24"}}),h("span",{style:{fontSize:11,color:T.text4}},"Off")),
   h("div",{style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:8,height:8,borderRadius:4,background:T.card2,border:`1px solid ${T.border}`}}),h("span",{style:{fontSize:11,color:T.text4}},"Vide"))
 ))})(),
 
@@ -1101,11 +1199,11 @@ view==="settings"&&h(React.Fragment,null,
 h("div",{style:{fontSize:14,fontWeight:800,color:pc,marginBottom:16}},"Paramètres"),
 h("button",{onClick:()=>{STORE.del("ft-unlocked");setLocked(true)},style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},"🔒 Verrouiller"),
 h("div",{style:{fontSize:11,color:T.text5,textAlign:"center",marginBottom:12}},"PIN chiffré SHA-256"),
-h("button",{onClick:()=>{if("Notification"in window){Notification.requestPermission().then(p=>{showAlert(p==="granted"?"Notifications activées ✓":"Active les notifications dans les réglages de ton navigateur.",p==="granted");if(p==="granted")scheduleReminders(week,phase)})}else{showAlert("Notifications non supportées sur ce navigateur.",false)}},style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},("Notification"in window&&Notification.permission==="granted")?"🔔 Notifications activées ✓":"🔔 Activer les notifications"),
+h("button",{onClick:()=>{if("Notification"in window){Notification.requestPermission().then(p=>{showAlert(p==="granted"?"Notifications activées ✓":"Active les notifications dans les réglages de ton navigateur.",p==="granted");if(p==="granted")scheduleReminders(week,phase,offDays)})}else{showAlert("Notifications non supportées sur ce navigateur.",false)}},style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},("Notification"in window&&Notification.permission==="granted")?"🔔 Notifications activées ✓":"🔔 Activer les notifications"),
 h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px",marginBottom:8}},h("div",{style:{fontSize:12,fontWeight:600,color:T.text2}},"Thème"),h("button",{onClick:()=>setLight(l=>!l),style:{padding:"6px 16px",borderRadius:8,border:"none",cursor:"pointer",background:light?"#1a1a2e":"#f5f5f0",color:light?"#fff":"#1a1a1a",fontSize:11,fontWeight:700}},light?"🌙 Sombre":"☀️ Clair")),
 h("button",{onClick:exportD,style:{width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${light?"#16a34a33":"#1a2e1a"}`,background:light?"#f0fdf4":"#0f1a0f",color:light?"#166534":"#4a4",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}},"📥 Exporter"),
 h("label",{style:{display:"block",width:"100%",padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.card,color:T.text3,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8,textAlign:"center"}},"📤 Importer",h("input",{type:"file",accept:".json",onChange:importD,style:{display:"none"}})),
-h("button",{onClick:()=>{showConfirm("Réinitialiser VARLD","Toutes tes données seront supprimées définitivement. Cette action est irréversible.",()=>{[setLogs,setWDone,setMeals,setNotes,setBodyW,setSleepD,setSprints,setPhotos,setSwaps,setDurations,setRpes,setCardio].forEach(s=>s({}));["ft-logs","ft-wdone","ft-meals","ft-notes","ft-bw","ft-sleep","ft-sprints","ft-photos","ft-swaps","ft-dur","ft-rpes","ft-cardio"].forEach(k=>STORE.del(k))},{okLabel:"Supprimer",danger:true})},style:{width:"100%",padding:"13px",borderRadius:10,border:"1px solid #ef444433",background:"transparent",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",marginTop:8}},"🗑 Réinitialiser"),
+h("button",{onClick:()=>{showConfirm("Réinitialiser VARLD","Toutes tes données seront supprimées définitivement. Cette action est irréversible.",()=>{[setLogs,setWDone,setMeals,setNotes,setBodyW,setSleepD,setSprints,setPhotos,setSwaps,setDurations,setRpes,setCardio,setOffDays].forEach(s=>s({}));["ft-logs","ft-wdone","ft-meals","ft-notes","ft-bw","ft-sleep","ft-sprints","ft-photos","ft-swaps","ft-dur","ft-rpes","ft-cardio","ft-offdays"].forEach(k=>STORE.del(k))},{okLabel:"Supprimer",danger:true})},style:{width:"100%",padding:"13px",borderRadius:10,border:"1px solid #ef444433",background:"transparent",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",marginTop:8}},"🗑 Réinitialiser"),
 h("div",{style:{marginTop:24,textAlign:"center"}},h("div",{style:{display:"flex",justifyContent:"center",marginBottom:8}},h(VLogoMark,{size:20,color:T.text5})),h("div",{style:{fontSize:10,color:T.text5,letterSpacing:3,fontWeight:700}},"VARLD"),h("div",{style:{fontSize:11,color:T.text5,marginTop:2}},"v6.0 · Prépa · Performance"))))
 ))}
 
